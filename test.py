@@ -101,7 +101,7 @@ def classify_letter(image, draw=False):
 
     thresh = cv2.adaptiveThreshold(blur, 255, 0, 1, configs.LETTER_THRESH, configs.LETTER_BLOCK)
     
-    element = cv2.getStructuringElement(cv2.MORPH_CROSS, (5,5))
+    element = cv2.getStructuringElement(cv2.MORPH_CROSS, (7,7))
     thresh = cv2.dilate(thresh, element)
 
     if draw:
@@ -117,7 +117,7 @@ def classify_letter(image, draw=False):
     mindst = float("inf")
     for cnt in contours:
         sz = cv2.contourArea(cnt)
-        if sz>750:
+        if sz>820:
             [x,y,w,h] = cv2.boundingRect(cnt)
             d = abs(cv2.pointPolygonTest(cnt, (128.0/2,128.0/2), measureDist=True))
             if d == 0:
@@ -126,7 +126,7 @@ def classify_letter(image, draw=False):
                 mindst = d
                 minc = cnt
 
-    if mindst > 30:
+    if mindst > 40:
         return None
 
     if minc is None:
