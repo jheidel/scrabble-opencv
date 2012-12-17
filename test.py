@@ -86,13 +86,25 @@ def classify_letter(image, draw=False):
         POST("letter start", image)
 
     luv = cv2.split(cv2.cvtColor(image, cv2.COLOR_RGB2HSV))
-
-    rgb = cv2.split(image)
     l_chan = luv[2]
+
+    #-----
+    gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    gray =  cv2.getRectSubPix(gray, (64,64), (64,64)) 
+    gray = cv2.GaussianBlur(gray, (5,5), 0)
+
+    mean, stddev = cv2.meanStdDev(gray)
     
-    chan = rgb[0]
-    POST("OC", chan)
-    print "average value is %s" % str(cv2.mean(chan))
+    if draw:
+        POST("OC", gray)
+        print "Mean is %.2f and stddev is %.2f" % (mean, stddev)
+
+    if stddev < configs.STD_DEV_THRESH:
+        #square is blank!
+        return None
+
+
+    #-----
 
     if draw:
         POST("letter L", l_chan)
@@ -136,6 +148,11 @@ def classify_letter(image, draw=False):
     cv2.rectangle(im,(x,y),(x+w,y+h),(0,255,0),1)
     if draw:
         POST("letter contour", im)
+    
+    #Detect triple word stuffs
+    if w > h*1.5:
+        return None
+
 
     #TODO: I is weird
     if float(h)/float(w) > 2.0:
@@ -177,7 +194,11 @@ def classify_letter(image, draw=False):
         #classify!
         sample = np.float32(sample)
         retval, results, neigh_resp, dists = model.find_nearest(sample, k = 1)
-        return chr(int((results[0][0])) + 96)
+        retchar = chr(int((results[0][0])) + 96)
+        if retchar == '0':
+            #Star character!
+            return None
+        return retchar
 
 
 vc = cv2.VideoCapture(-1)
@@ -307,7 +328,7 @@ while rval:
             y += float(configs.SIZE-configs.TSTEP-configs.BSTEP) / 15
             cv2.line(norm_draw, (configs.LSTEP,int(y)), (configs.SIZE-configs.RSTEP,int(y)), line_color)
 
-        POST("remapped", norm_draw)
+        #POST("remapped", norm_draw)
 
         #end norm draw
        
@@ -323,7 +344,7 @@ while rval:
                 x = configs.LSTEP
                 for j in range(0,15):
                     img = get_sub_image(norm, j,i)
-                    r = classify_letter(img)
+                    r = classify_letter(img, draw=(j == configs.COORD_X and i == configs.COORD_Y))
                     if r is not None:
                         cv2.putText(letter_draw, str(r.upper()), (int(x)+8,int(y)+15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255,255,255))
                     x += float(configs.SIZE-configs.LSTEP-configs.RSTEP) / 15
