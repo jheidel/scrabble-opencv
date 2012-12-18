@@ -3,6 +3,7 @@ from vision import ScrabbleVision
 from scoreboard import Scoreboard
 from board import Board
 from speaker import Speaker
+import twl
 
 def ask(s):
     return str(raw_input(str(s) + "\n> "))
@@ -65,11 +66,12 @@ while True:
             if wv is not None:
                 new_words.add(wv)
 
-        words_with_scores = map(lambda x: (x, new_board.score_word(x, diffs)), new_words) 
+        words_with_scores = map(lambda x: (new_board.score_word(x, diffs),x), new_words) 
+        words_with_scores.sort(reverse=True)
 
         total_score = 0
         strs = []
-        for ((wrd, pos, hz), score) in words_with_scores:
+        for (score, (wrd, pos, hz)) in words_with_scores:
             print "New word: %s -- %d points" % (wrd, score)
             strs.append("-- %s -- for %d point%s" % (wrd, score, "s" if score > 1 else ""))
             total_score += score
@@ -81,13 +83,22 @@ while True:
             total_score += 50
 
         print "==Total score for turn: %d points" % total_score
-       
-        voice.say("Jeff plays %s %s%s." % (", and ".join(strs), extra_str, ("for a total of %d points" % total_score) if len(strs) > 1 or extra_str != "" else ""))
-        
-        #TODO: dictionary check
 
+        if total_score == 0:
+            voice.say("Jeff skips turn.")
+        else:
+            voice.say("Jeff plays %s %s%s." % (", and ".join(strs), extra_str, ("for a total of %d points" % total_score) if len(strs) > 1 or extra_str != "" else ""))
 
         
+        not_wrds = []
+        for (score, (wrd, pos, hz)) in words_with_scores:
+            if not twl.check(wrd):
+                print "WARN: \"%s\" not in dictionary." % wrd
+                not_wrds.append(wrd)
+        if len(not_wrds) > 0:
+            voice.say("WARNING! The word%s %s %s not in the dictionary." % ("s" if len(not_wrds) > 1 else "", " and ".join(map(lambda x: "-- %s -- " % x, not_wrds)), "are" if len(not_wrds) > 1 else "is"))
+
+         
         rsp = ask("Commit changes? (enter \"no\" to retry, anything else to continue)").lower().strip()
         if rsp == "no":
             print "Changes aborted. Please retry."
