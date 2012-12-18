@@ -264,10 +264,14 @@ class ScrabbleVision(Thread):
         self.board = Board()
         self.l = Lock()
         self.started = False
+        self.killed = False
 
     def get_current_board(self):
         with self.l:
             return self.board.copy()
+
+    def kill(self):
+        self.killed = True
 
     def run(self):
 
@@ -280,6 +284,10 @@ class ScrabbleVision(Thread):
 
 
             while rval:
+
+                if self.killed:
+                    print "Vision terminating"
+                    return
 
                 reload(configs)
                 element = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (configs.ERODE_RAD,configs.ERODE_RAD))
@@ -294,19 +302,19 @@ class ScrabbleVision(Thread):
 
                     v_chan = luv[2]
 
-                    #POST("V", v_chan)
+                    POST("V", v_chan)
 
                     blur = cv2.GaussianBlur(v_chan, (configs.BLUR_RAD,configs.BLUR_RAD), 0)
 
-                    #POST("blur", blur)
+                    POST("blur", blur)
                     thresh = cv2.adaptiveThreshold(blur, 255, 0, 1, configs.BOARD_THRESH_PARAM, configs.BOARD_BLOCK_SIZE)
 
-                    #POST("thresh", thresh)
+                    POST("thresh", thresh)
 
                     erode = cv2.erode(thresh, element)
                     erode = cv2.dilate(erode, element2)
                     
-                    #POST("erode", erode)
+                    POST("erode", erode)
 
                     erode_draw = frame.copy()
                     
@@ -394,6 +402,7 @@ class ScrabbleVision(Thread):
                             if d < dst:
                                 dst = d
                                 crnr = pc
+                        #print "Closest to %s is %d" % (str(point), dst)
                         return crnr
 
                     """
@@ -408,12 +417,12 @@ class ScrabbleVision(Thread):
                         corners_sorted[cr] = list(c)
                     """
                     tl = get_closest_corner((0,0))
-                    br = get_closest_corner((configs.SIZE, configs.SIZE))
+                    br = get_closest_corner((configs.IMAGE_W, configs.IMAGE_H))
                     tl = (tl[0] + configs.TL_X, tl[1] + configs.TL_Y)
                     br = (br[0] + configs.BR_X, br[1] + configs.BR_Y)
 
 
-                    corners_sorted = [tl, get_closest_corner((configs.SIZE,0)), br, get_closest_corner((0, configs.SIZE))]
+                    corners_sorted = [tl, get_closest_corner((configs.IMAGE_W,0)), br, get_closest_corner((0, configs.IMAGE_H))]
 
                     for cr in corners_sorted:
                         cv2.circle(erode_draw, (int(cr[0]), int(cr[1])), 15, (0,0,255), thickness=3)

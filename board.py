@@ -36,6 +36,13 @@ class Board:
         for (x,y,c) in diffs:
             self.set(x,y,c)
 
+    #Copies all non-none values from the other board to this board
+    def merge(self, other):
+        for i in range(0, Board.SIZE):
+            for j in range(0, Board.SIZE):
+                if other.get(i,j) != None:
+                    self.set(i,j, other.get(i,j))
+
     #Gets the word containing the letter at element at x,y
     def get_word(self, x, y, horizontal=True):
         

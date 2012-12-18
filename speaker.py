@@ -7,6 +7,7 @@ class Speaker(Thread):
         Thread.__init__(self)
         self.q = []
         self.c = Condition()
+        self.exit = False
 
     def say(self, phrase):
         with self.c:
@@ -16,11 +17,19 @@ class Speaker(Thread):
     def _speak(self, txt):
         os.system("espeak \"%s\" 2>/dev/null >/dev/null" % txt)
 
+    def kill(self):
+        with self.c:
+            self.exit = True
+            self.c.notify()
+
     def run(self):
         while True:
             txt = ""
             with self.c:
                 while len(self.q) == 0:
+                    if self.exit:
+                        print "Speaker terminating"
+                        return
                     self.c.wait()
                 txt = self.q.pop()
             self._speak(txt)

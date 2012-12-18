@@ -4,12 +4,10 @@ from scoreboard import Scoreboard
 from board import Board
 from speaker import Speaker
 import twl
+import signal, sys
 
 def ask(s):
     return str(raw_input(str(s) + "\n> "))
-
-def speak(s):
-    os.system("echo \"%s\" | espeak &> /dev/null &" % s)
 
 #Find out our players
 player_count = int(ask("How many players?"))
@@ -34,6 +32,17 @@ voice.start()
 game_board = Board()
 scoreboard = Scoreboard(player_list)
 
+
+#Register interrupt handler
+def signal_handler(signal, frame):
+    print "Program terminating..."
+    voice.kill()
+    sv.kill()
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+
+
 #TODO: Load from pickled data if desired
 
 
@@ -56,6 +65,7 @@ while True:
         
         #Process board and differences
         new_board = sv.get_current_board() 
+        new_board.merge(game_board)
         diffs = Board.differences(game_board, new_board)
 
         #TODO: Check for letters that have gone None 
@@ -118,6 +128,10 @@ while True:
 
             #TODO: Pickle away game state
 
+        
+
+
+    #TODO: End-game condition
 
 
 print "Totalling scores"
