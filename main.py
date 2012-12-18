@@ -5,6 +5,7 @@ from board import Board
 from speaker import Speaker
 import twl
 import signal, sys
+from scoring import *
 
 def ask(s):
     return str(raw_input(str(s) + "\n> "))
@@ -48,6 +49,9 @@ signal.signal(signal.SIGINT, signal_handler)
 
 voice.say("Starting game!")
 
+player_out = None
+no_letters_warned = False
+
 while True:
 
     #TODO Inform player turn
@@ -55,12 +59,10 @@ while True:
 
     print "-- Begin %s's turn --" % cur_player 
     voice.say("%s's turn!" % cur_player)
-    rsp = ask("Push enter to register move or type \"done\" to indicate the game is over").lower().strip()
+    rsp = ask("Push enter to register move").lower().strip()
     
-    if rsp == "done":
-        print "Game ended!"
-        voice.say("Game has ended!")
-        break
+    if rsp == "lookup":
+        pass
     else:
         
         #Process board and differences
@@ -119,23 +121,59 @@ while True:
             voice.say("Turn has been undone.")
         else:
             #Save changes to game state
+            tiles_left = scoreboard.subtract_tiles(cur_player, len(diffs))
             game_board.add_diffs(diffs) #Update game board w/ the changes
             round_completed = scoreboard.add_move(cur_player, total_score, words_with_scores)
-            if round_completed:
+            if tiles_left == 0:
+                #Game over!
+                print "Game finished! %s is out of letters!" % cur_player
+                player_out = cur_player
+                voice.say("%s is out of letters. The game is over." % cur_player)
+                break
+            elif round_completed:
                 voice.say("End of round %d." % (scoreboard.turn_round - 1))
                 leader, points = scoreboard.get_scores()[0]
                 voice.say("%s is in the lead with %d points." % (leader, points))
+                print "Letters remaining in bag: %d" % scoreboard.get_tiles_in_bag()
+                #voice.say("There are %d letters left in the bag." % scoreboard.get_tiles_in_bag())
+            if scoreboard.get_tiles_in_bag() == 0 and (not no_letters_warned):
+                no_letters_warned = True
+                print "No more letters!"
+                voice.say("There are no more letters in the bag.")
 
             #TODO: Pickle away game state
 
-        
-
-
     #TODO: End-game condition
 
+#Perform end-game out of letter checks
+for p in scoreboard.player_list:
+    if p != player_out: 
+        voice.say("Which letters does %s have left?" % p)
+        r = ask("Which letters does %s have left? (input as a list separated by commas)")
+        letters = map(lambda x: x.strip().lower(), r.split(','))
+        total_points = sum(map(get_letter_points, letters))
+        
+        #Give these points to the player who went out
+        scoreboard.add_adjustment(p, -1 * total_points)
+        scoreboard.add_adjustment(player_out, total_points)
+        print "%d points transferred from %s to %s" % (total_points, p, player_out)
 
-print "Totalling scores"
-#TODO: total scores
+final_scores = scoreboard.get_scores()
+winner, winning_score = final_scores[0]
+
+print "-------------------"
+
+print "== %s Wins! ==" % winner
+print "%s has %d points" % (winner, winning_score)
+voice.say("%s is the winner with a final score of %d points." % (winner, winning_score))
+
+for player, points in final_scores[1:]:
+    print "%s has %d points" % (player, points)
+    voice.say("%s finished with %d points." % (player,points))
+
+print "-------------------"
+
+        
 
 
 
