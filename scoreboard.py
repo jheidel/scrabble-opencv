@@ -23,8 +23,8 @@ class Scoreboard:
         self.turn += 1
 
         if self.turn % len(self.player_list) == 0:
-            return True
             self.turn_round += 1
+            return True
         else:
             return False
 
