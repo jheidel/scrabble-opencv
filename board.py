@@ -1,4 +1,4 @@
-
+from scoring import *
 
 class Board:
     SIZE = 15
@@ -38,7 +38,6 @@ class Board:
 
     #Gets the word containing the letter at element at x,y
     def get_word(self, x, y, horizontal=True):
-        print "Resolving %d, %d horizontal: %s" % (x,y,str(horizontal))
         
         #Backtrack to the start of the word
         sx, sy = x, y
@@ -69,9 +68,35 @@ class Board:
             return None
 
         return (word, word_start, horizontal)
-        
+    
+    #Scores a word given the new board and the list of diffs
+    def score_word(self, (word, word_start, horizontal), diffs):
 
+        def is_new(x,y):
+            for (i,j,c) in diffs:
+                if x == i and y == j:
+                    return True
+            return False
 
-        
+        c_mult = 1
+        score = 0
+        sx, sy = word_start
+        while self.get(sx, sy) != None:
+            #Score letter!
+            l = self.get(sx, sy)
+            lm = 1
 
+            if is_new(sx, sy):
+                #Multipliers are applicable for this letter
+                lm *= get_letter_mult(sx,sy)
+                c_mult *= get_word_mult(sx,sy)
+
+            score += lm * get_letter_points(l)
+
+            if horizontal:
+                sx += 1
+            else:
+                sy += 1
+
+        return score * c_mult
 

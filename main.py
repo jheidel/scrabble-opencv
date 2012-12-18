@@ -2,6 +2,7 @@ import os
 from vision import ScrabbleVision
 from scoreboard import Scoreboard
 from board import Board
+from speaker import Speaker
 
 def ask(s):
     return str(raw_input(str(s) + "\n> "))
@@ -25,19 +26,26 @@ while not sv.started:
     pass
 print "Scrabble vision started. Ready."
 
+print "Starting speaker..."
+voice = Speaker()
+voice.start()
+
 #The game board
 game_board = Board()
 
+voice.say("Starting game!")
 
 while True:
 
     #TODO Inform player turn
 
-    print "Begin turn" 
+    print "-- Begin Jeff's turn --" 
+    voice.say("Jeff's turn!")
     rsp = ask("Push enter to register move or type \"done\" to indicate the game is over").lower().strip()
     
     if rsp == "done":
         print "Game ended!"
+        voice.say("Game has ended!")
         break
     else:
         
@@ -45,8 +53,8 @@ while True:
         new_board = sv.get_current_board() 
         diffs = Board.differences(game_board, new_board)
 
-        print str(diffs)
-       
+        #TODO: Check for letters that have gone None 
+
         new_words = set()
 
         for (x,y,c) in diffs:
@@ -57,13 +65,37 @@ while True:
             if wv is not None:
                 new_words.add(wv)
 
-        print str(new_words)
+        words_with_scores = map(lambda x: (x, new_board.score_word(x, diffs)), new_words) 
 
-        for (wrd, pos, hz) in new_words:
-            print "New word: %s" % wrd
-                
+        total_score = 0
+        strs = []
+        for ((wrd, pos, hz), score) in words_with_scores:
+            print "New word: %s -- %d points" % (wrd, score)
+            strs.append("-- %s -- for %d point%s" % (wrd, score, "s" if score > 1 else ""))
+            total_score += score
 
-        game_board.add_diffs(diffs) #Update game board w/ the changes
+        extra_str = ""
+        if len(diffs) >= 7:
+            print "All letter bonus: +50 points"
+            extra_str = ", and used all letters for 50 more points, "
+            total_score += 50
+
+        print "==Total score for turn: %d points" % total_score
+       
+        voice.say("Jeff plays %s %s%s." % (", and ".join(strs), extra_str, ("for a total of %d points" % total_score) if len(strs) > 1 or extra_str != "" else ""))
+        
+        #TODO: dictionary check
+
+
+        
+        rsp = ask("Commit changes? (enter \"no\" to retry, anything else to continue)").lower().strip()
+        if rsp == "no":
+            print "Changes aborted. Please retry."
+            voice.say("Turn has been undone.")
+        else:
+            #Save changes to game
+        
+            game_board.add_diffs(diffs) #Update game board w/ the changes
 
 
 
