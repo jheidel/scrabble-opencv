@@ -11,13 +11,12 @@ def ask(s):
 def speak(s):
     os.system("echo \"%s\" | espeak &> /dev/null &" % s)
 
-scoreboard = Scoreboard() 
-
 #Find out our players
 player_count = int(ask("How many players?"))
-
+player_list = []
 for i in range(1, player_count+1):
     x = ask("What is Player %d's name?"% i)    
+    player_list.append(x.strip())
 
 
 print "Starting scrabble vision..."
@@ -33,15 +32,20 @@ voice.start()
 
 #The game board
 game_board = Board()
+scoreboard = Scoreboard(player_list)
+
+#TODO: Load from pickled data if desired
+
 
 voice.say("Starting game!")
 
 while True:
 
     #TODO Inform player turn
+    cur_player = scoreboard.get_player_turn()
 
-    print "-- Begin Jeff's turn --" 
-    voice.say("Jeff's turn!")
+    print "-- Begin %s's turn --" % cur_player 
+    voice.say("%s's turn!" % cur_player)
     rsp = ask("Push enter to register move or type \"done\" to indicate the game is over").lower().strip()
     
     if rsp == "done":
@@ -85,9 +89,9 @@ while True:
         print "==Total score for turn: %d points" % total_score
 
         if total_score == 0:
-            voice.say("Jeff skips turn.")
+            voice.say("%s skips this turn." % cur_player)
         else:
-            voice.say("Jeff plays %s %s%s." % (", and ".join(strs), extra_str, ("for a total of %d points" % total_score) if len(strs) > 1 or extra_str != "" else ""))
+            voice.say("%s plays %s %s%s." % (cur_player, ", and ".join(strs), extra_str, ("for a total of %d points" % total_score) if len(strs) > 1 or extra_str != "" else ""))
 
         
         not_wrds = []
@@ -100,13 +104,19 @@ while True:
 
          
         rsp = ask("Commit changes? (enter \"no\" to retry, anything else to continue)").lower().strip()
-        if rsp == "no":
+        if "n" in rsp:
             print "Changes aborted. Please retry."
             voice.say("Turn has been undone.")
         else:
-            #Save changes to game
-        
+            #Save changes to game state
             game_board.add_diffs(diffs) #Update game board w/ the changes
+            round_completed = scoreboard.add_move(cur_player, total_score, words_with_scores)
+            if round_completed:
+                voice.say("End of round %d." % (scoreboard.turn_round - 1))
+                leader, points = scoreboard.get_scores()[0]
+                voice.say("%s is in the lead with %d points." % (leader, points))
+
+            #TODO: Pickle away game state
 
 
 
