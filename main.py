@@ -35,7 +35,7 @@ scoreboard = Scoreboard(player_list)
 
 #Register interrupt handler
 def signal_handler(signal, frame):
-    print "Program terminating..."
+    print "\nProgram terminating!"
     voice.kill()
     sv.kill()
     sys.exit(0)
@@ -137,6 +137,10 @@ while True:
 print "Totalling scores"
 #TODO: total scores
 
+
+
+
+signal.pause() #Wait for ending signal
 
 
 

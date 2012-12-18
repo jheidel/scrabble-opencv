@@ -257,6 +257,10 @@ def classify_letter(image, draw=False):
             return None
         return retchar
 
+class IterSkip(Exception): #Using exceptions for loop control... so hacky...
+    def __init__(self):
+        pass
+
 
 class ScrabbleVision(Thread):
     def __init__(self):
@@ -420,9 +424,23 @@ class ScrabbleVision(Thread):
                     br = get_closest_corner((configs.IMAGE_W, configs.IMAGE_H))
                     tl = (tl[0] + configs.TL_X, tl[1] + configs.TL_Y)
                     br = (br[0] + configs.BR_X, br[1] + configs.BR_Y)
+                    tr = get_closest_corner((configs.IMAGE_W, 0))
+                    bl = get_closest_corner((0, configs.IMAGE_H))
 
+                    #Check lengths to ensure valid board layout
+                    top_len = distance(tl, tr)
+                    left_len = distance(tl, bl)
+                    bottom_len = distance(bl, br)
+                    right_len = distance(tr, br)
+                    sides = np.array([top_len, left_len, bottom_len, right_len])
 
-                    corners_sorted = [tl, get_closest_corner((configs.IMAGE_W,0)), br, get_closest_corner((0, configs.IMAGE_H))]
+                    side_dev = float(sides.std()) / sides.mean()
+                    if side_dev > configs.SIDE_DEV_THRESH:
+                        if configs.DEBUG:
+                            print "Invalid board corners detected! (std of %.2f)" % side_dev
+                        raise IterSkip()
+
+                    corners_sorted = [tl, tr, br, bl]
 
                     for cr in corners_sorted:
                         cv2.circle(erode_draw, (int(cr[0]), int(cr[1])), 15, (0,0,255), thickness=3)
@@ -502,7 +520,8 @@ class ScrabbleVision(Thread):
 
                         POST("AVG letter draw", avg_draw)
 
-
+                except IterSkip as e:
+                    pass
                 except Exception as e:
                     print "Exception occured: %s" % str(e)
 
