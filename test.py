@@ -43,9 +43,50 @@ def get_sub_image(image, x, y):
     return cv2.getRectSubPix(image, (int(dx + configs.PATCH_EXPAND), int(dy + configs.PATCH_EXPAND)), (int(xp + dx/2), int(yp + dy/2))) 
 
 
+
 responses = None
 samples = None
 model = None
+
+board_ar = [[] for x in range(0,15**2)]
+def acc(x,y):
+    return board_ar[y*15 +x]
+
+def new_info(x,y,c):
+    a = acc(x,y)
+    a.insert(0,c)
+    while len(a) > configs.CHAR_BUFFER_SIZE:
+        a.pop()
+
+def lookup_char(x,y):
+    a = acc(x,y)
+    d = {}
+    for l in a:
+        if l not in d:
+            d[l] = 1
+        else:
+            d[l] = d[l] + 1
+    dd = zip(d.values(), d.keys())
+    dd.sort(reverse=True)
+
+    if len(dd) == 0:
+        return None
+   
+    """
+    if dd[0][1] == None and len(dd) >= 2:
+        nc = d[0][0]
+        ncf = float(nc) / len(a)
+        if ncf != 1:
+            print "nc IS %.2f" % ncf
+        if ncf > configs.BLANK_REQ_PERCENT:
+            return None
+        else:
+            dd.remove(dd[0])
+    """
+
+    return dd[0][1]
+    
+
 
 if configs.TRAIN:
     print "Training mode!"
@@ -90,7 +131,7 @@ def classify_letter(image, draw=False):
 
     #-----
     gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-    gray =  cv2.getRectSubPix(gray, (64,64), (64,64)) 
+    gray =  cv2.getRectSubPix(gray, (configs.BLANK_DETECT_SIZE,configs.BLANK_DETECT_SIZE), (64,64)) 
     gray = cv2.GaussianBlur(gray, (5,5), 0)
 
     mean, stddev = cv2.meanStdDev(gray)
@@ -101,6 +142,8 @@ def classify_letter(image, draw=False):
 
     if stddev < configs.STD_DEV_THRESH:
         #square is blank!
+        if draw:
+            print "Dropped due to blank"
         return None
 
 
@@ -131,17 +174,21 @@ def classify_letter(image, draw=False):
         sz = cv2.contourArea(cnt)
         if sz>820:
             [x,y,w,h] = cv2.boundingRect(cnt)
-            d = abs(cv2.pointPolygonTest(cnt, (128.0/2,128.0/2), measureDist=True))
-            if d == 0:
-                continue
+            d = abs(cv2.pointPolygonTest(cnt, (64,64), measureDist=True))
+            cv2.circle(im, (64,64), 2, (0,255,0), thickness=3)
+
             if d < mindst:
                 mindst = d
                 minc = cnt
 
-    if mindst > 40:
+    if mindst > 50:
+        if draw:
+            print "Dropped due to contour distance"
         return None
 
     if minc is None:
+        if draw:
+            print "Dropped due to no contours"
         return None
             
     [x,y,w,h] = cv2.boundingRect(minc)
@@ -150,7 +197,15 @@ def classify_letter(image, draw=False):
         POST("letter contour", im)
     
     #Detect triple word stuffs
-    if w > h*1.5:
+    if w > h*configs.TEXT_RATIO:
+        if draw:
+            print "Dropped due to insufficient ratio"
+        return None
+
+
+    if w*h >= 128**2 * configs.MAX_FILL:
+        if draw:
+            print "Too much fill"
         return None
 
 
@@ -197,6 +252,8 @@ def classify_letter(image, draw=False):
         retchar = chr(int((results[0][0])) + 96)
         if retchar == '0':
             #Star character!
+            if draw:
+                print "Dropped due to star"
             return None
         return retchar
 
@@ -224,7 +281,7 @@ while rval:
 
         v_chan = luv[2]
 
-        #POST("V", v_chan)
+        POST("V", v_chan)
 
         blur = cv2.GaussianBlur(v_chan, (configs.BLUR_RAD,configs.BLUR_RAD), 0)
 
@@ -235,7 +292,33 @@ while rval:
 
         erode = cv2.erode(thresh, element)
         erode = cv2.dilate(erode, element2)
-        POST("erode", erode)
+        
+        #POST("erode", erode)
+
+        erode_draw = frame.copy()
+        
+        contours,hierarchy = cv2.findContours(erode, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        possible_corners = []
+
+        #Find large contour closest to center of image
+        for cnt in contours:
+            sz = cv2.contourArea(cnt)
+            if sz>75 and sz < 650:
+                ellipse = cv2.fitEllipse(cnt)
+                ((x,y), (w,h), r) = ellipse
+                ar = w / h if w > h else h / w
+                if ar > 1.8:
+                    continue
+                pf = (w * h * 0.75) / sz
+                if pf > 1.5:
+                    continue
+                cv2.ellipse(erode_draw,ellipse,(0,255,0),2)
+                possible_corners.append((x,y))
+
+
+        """
+
 
         lines = cv2.HoughLinesP(erode, 1, 3.14/180, 300, minLineLength=200, maxLineGap=100)[0]
         m,n = erode.shape
@@ -287,6 +370,20 @@ while rval:
         img_corners = [(0,0), (640,0), (640,480), (0,480)]
         corners_sorted = [0,0,0,0]
 
+        """
+
+
+        def get_closest_corner(point):
+            dst = float("inf")
+            crnr = None
+            for pc in possible_corners:
+                d = distance(point, pc)
+                if d < dst:
+                    dst = d
+                    crnr = pc
+            return crnr
+
+        """
         for c in corners:
             dst = float("inf")
             cr = 0
@@ -296,7 +393,19 @@ while rval:
                     dst = d
                     cr = i
             corners_sorted[cr] = list(c)
-    
+        """
+        tl = get_closest_corner((0,0))
+        br = get_closest_corner((configs.SIZE, configs.SIZE))
+        tl = (tl[0] + configs.TL_X, tl[1] + configs.TL_Y)
+        br = (br[0] + configs.BR_X, br[1] + configs.BR_Y)
+
+
+        corners_sorted = [tl, get_closest_corner((configs.SIZE,0)), br, get_closest_corner((0, configs.SIZE))]
+
+        for cr in corners_sorted:
+            cv2.circle(erode_draw, (int(cr[0]), int(cr[1])), 15, (0,0,255), thickness=3)
+        POST("erode_draw", erode_draw)
+
         #sort corners top left, top right, bottom right, bottom left
         src = np.array(corners_sorted, np.float32)
         dst = np.array([[0,0],[configs.SIZE,0],[configs.SIZE,configs.SIZE],[0,configs.SIZE]], np.float32)
@@ -340,17 +449,36 @@ while rval:
             letter_draw = norm_draw.copy()
             y = configs.TSTEP
             #Draw crazy grid thing
-            for i in range(0,15):
+            for j in range(0,15):
                 x = configs.LSTEP
-                for j in range(0,15):
-                    img = get_sub_image(norm, j,i)
-                    r = classify_letter(img, draw=(j == configs.COORD_X and i == configs.COORD_Y))
+                for i in range(0,15):
+                    img = get_sub_image(norm, i,j)
+                    r = classify_letter(img, draw=(i == configs.COORD_X and j == configs.COORD_Y))
+                    new_info(i,j,r)
                     if r is not None:
-                        cv2.putText(letter_draw, str(r.upper()), (int(x)+8,int(y)+15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255,255,255))
+                        cv2.putText(letter_draw, str(r.upper()), (int(x)+7,int(y)+22), cv2.FONT_HERSHEY_COMPLEX, 0.7, (255,255,255))
                     x += float(configs.SIZE-configs.LSTEP-configs.RSTEP) / 15
                 y += float(configs.SIZE-configs.TSTEP-configs.BSTEP) / 15
 
             POST("letter draw", letter_draw)
+
+            
+            avg_draw = norm_draw.copy()
+            y = configs.TSTEP
+            #Draw crazy grid thing
+            for j in range(0,15):
+                x = configs.LSTEP
+                for i in range(0,15):
+                    r = lookup_char(i,j) 
+                    if r is not None:
+                        cv2.putText(avg_draw, str(r.upper()), (int(x)+7,int(y)+22), cv2.FONT_HERSHEY_COMPLEX, 0.7, (255,255,255))
+                    x += float(configs.SIZE-configs.LSTEP-configs.RSTEP) / 15
+                y += float(configs.SIZE-configs.TSTEP-configs.BSTEP) / 15
+
+            POST("AVG letter draw", avg_draw)
+
+
+
 
 
     except Exception as e:
