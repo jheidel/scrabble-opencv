@@ -6,7 +6,8 @@ import sys
 import gc
 from scipy.interpolate import griddata
 import configs
-from threading import Thread
+from threading import Thread, Lock
+from board import Board
 
 def POST(name, img):
     cv2.namedWindow(name)
@@ -260,9 +261,13 @@ def classify_letter(image, draw=False):
 class ScrabbleVision(Thread):
     def __init__(self):
         Thread.__init__(self)
+        self.board = Board()
+        self.l = Lock()
+        self.started = False
 
-    def get_scrabble_model(self):
-        pass
+    def get_current_board(self):
+        with self.l:
+            return self.board.copy()
 
     def run(self):
 
@@ -472,16 +477,19 @@ class ScrabbleVision(Thread):
 
                         
                         avg_draw = norm_draw.copy()
-                        y = configs.TSTEP
-                        #Draw crazy grid thing
-                        for j in range(0,15):
-                            x = configs.LSTEP
-                            for i in range(0,15):
-                                r = lookup_char(i,j) 
-                                if r is not None:
-                                    cv2.putText(avg_draw, str(r.upper()), (int(x)+7,int(y)+22), cv2.FONT_HERSHEY_COMPLEX, 0.7, (255,255,255))
-                                x += float(configs.SIZE-configs.LSTEP-configs.RSTEP) / 15
-                            y += float(configs.SIZE-configs.TSTEP-configs.BSTEP) / 15
+
+                        with self.l:
+                            y = configs.TSTEP
+                            #Draw crazy grid thing
+                            for j in range(0,15):
+                                x = configs.LSTEP
+                                for i in range(0,15):
+                                    r = lookup_char(i,j) 
+                                    self.board.set(i,j,r)
+                                    if r is not None:
+                                        cv2.putText(avg_draw, str(r.upper()), (int(x)+7,int(y)+22), cv2.FONT_HERSHEY_COMPLEX, 0.7, (255,255,255))
+                                    x += float(configs.SIZE-configs.LSTEP-configs.RSTEP) / 15
+                                y += float(configs.SIZE-configs.TSTEP-configs.BSTEP) / 15
 
                         POST("AVG letter draw", avg_draw)
 
@@ -492,6 +500,7 @@ class ScrabbleVision(Thread):
                 #END PROCESSING
 
                 #next itr
+                self.started = True
                 key = cv2.waitKey(50)
                 rval, frame = vc.read()
 
