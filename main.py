@@ -6,17 +6,10 @@ from speaker import Speaker
 import twl
 import signal, sys
 from scoring import *
+import pickle
 
 def ask(s):
     return str(raw_input(str(s) + "\n> "))
-
-#Find out our players
-player_count = int(ask("How many players?"))
-player_list = []
-for i in range(1, player_count+1):
-    x = ask("What is Player %d's name?"% i)    
-    player_list.append(x.strip())
-
 
 print "Starting scrabble vision..."
 sv = ScrabbleVision()
@@ -29,9 +22,25 @@ print "Starting speaker..."
 voice = Speaker()
 voice.start()
 
-#The game board
-game_board = Board()
-scoreboard = Scoreboard(player_list)
+PICKLE_FILENAME = "game.state"
+
+if len(sys.argv) == 2:
+    filename = sys.argv[1] 
+    (scoreboard, game_board) = pickle.load( open(filename, "rb") )
+    print "Game recovered from file"
+    voice.say("Resuming game!")
+else:
+    #Find out our players
+    player_count = int(ask("How many players?"))
+    player_list = []
+    for i in range(1, player_count+1):
+        x = ask("What is Player %d's name?"% i)    
+        player_list.append(x.strip())
+    
+    game_board = Board()
+    scoreboard = Scoreboard(player_list)
+
+    voice.say("Starting game!")
 
 
 #Register interrupt handler
@@ -43,11 +52,6 @@ def signal_handler(signal, frame):
 
 signal.signal(signal.SIGINT, signal_handler)
 
-
-#TODO: Load from pickled data if desired
-
-
-voice.say("Starting game!")
 
 player_out = None
 no_letters_warned = False
@@ -142,8 +146,8 @@ while True:
                 print "No more letters!"
                 voice.say("There are no more letters in the bag.")
 
-
-            #TODO: Pickle away game state
+            #Pickle away game state in case of crash
+            pickle.dump( (scoreboard, game_board) , open(PICKLE_FILENAME, "wb"))
 
     #TODO: End-game condition
 
