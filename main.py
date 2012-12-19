@@ -160,9 +160,10 @@ while True:
 #Perform end-game out of letter checks
 for p in scoreboard.player_list:
     if p != player_out: 
-        voice.say("Which letters does %s have left?" % p)
         letter_count = scoreboard.tiles[p]
-        r = ask("Which %s does %s have left? (input as a list separated by commas)" % (("%d letters" % letter_count) if letter_count > 1 else "letter",p))
+        query = ("Which %s does %s have left?" % (("%d letters" % letter_count) if letter_count > 1 else "letter",p))
+        voice.say(query)
+        r = ask("%s (input as a list separated by commas)" % query)
         letters = map(lambda x: x.strip().lower(), r.split(','))
         total_points = sum(map(get_letter_points, letters))
         
