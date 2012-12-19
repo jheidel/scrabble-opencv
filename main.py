@@ -58,6 +58,7 @@ while True:
     cur_player = scoreboard.get_player_turn()
 
     print "-- Begin %s's turn --" % cur_player 
+    print "Letters %s Players boards: %s" % (scoreboard.tile_count, scoreboard.tiles)
     voice.say("%s's turn!" % cur_player)
     rsp = ask("Push enter to register move").lower().strip()
     
@@ -140,6 +141,7 @@ while True:
                 no_letters_warned = True
                 print "No more letters!"
                 voice.say("There are no more letters in the bag.")
+
 
             #TODO: Pickle away game state
 

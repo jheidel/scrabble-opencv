@@ -1,4 +1,4 @@
-TILES_IN_GAME = 98 #100 with blanks
+TILES_IN_GAME = 20 #100 with blanks
 TILES_PER_PLAYER = 7
 
 class Scoreboard:
@@ -46,8 +46,7 @@ class Scoreboard:
     #Returns the number of tiles in the posession of the player (game over when 0)
     def subtract_tiles(self, player, tiles):
         self.tiles[player] -= tiles
-        need = TILES_PER_PLAYER - tiles
-        adjusted_need = min(need, self.tile_count)
+        adjusted_need = min(tiles, self.tile_count)
         
         self.tiles[player] += adjusted_need
         self.tile_count -= adjusted_need
