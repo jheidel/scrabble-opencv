@@ -1,4 +1,4 @@
-TILES_IN_GAME = 20 #100 with blanks
+TILES_IN_GAME = 98 #100 with blanks
 TILES_PER_PLAYER = 7
 
 class Scoreboard:
