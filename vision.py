@@ -8,6 +8,7 @@ from scipy.interpolate import griddata
 import configs
 from threading import Thread, Lock
 from board import Board
+import traceback
 
 def POST(name, img):
     cv2.namedWindow(name)
@@ -525,6 +526,9 @@ class ScrabbleVision(Thread):
                     pass
                 except Exception as e:
                     print "Exception occured: %s" % str(e)
+                    print "--------"
+                    print traceback.format_exc()
+                    print "--------"
 
                 #END PROCESSING
 
