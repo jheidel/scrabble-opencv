@@ -62,6 +62,7 @@ signal.signal(signal.SIGINT, signal_handler)
 
 
 player_out = None
+prev_leader = None
 no_letters_warned = False
 
 while True:
@@ -157,7 +158,9 @@ while True:
         elif round_completed:
             voice.say("End of round %d." % (scoreboard.turn_round - 1))
             leader, points = scoreboard.get_scores()[0]
-            voice.say("%s is in the lead with %d points." % (leader, points))
+            if leader != prev_leader:
+                prev_leader = leader
+                voice.say("%s takes the lead with %d points." % (leader, points))
             #voice.say("There are %d letters left in the bag." % scoreboard.get_tiles_in_bag())
         if scoreboard.get_tiles_in_bag() == 0 and (not no_letters_warned):
             no_letters_warned = True
@@ -192,6 +195,7 @@ for p in scoreboard.player_list:
         scoreboard.add_adjustment(player_out, total_points)
         print "%d points transferred from %s to %s" % (total_points, p, player_out)
         voice.say("%s get %d points from %s." % (player_out, total_points, p))
+        sbox.update_scores(scoreboard.points)              
 
 sbox.update_scores(scoreboard.points)              
 final_scores = scoreboard.get_scores()
