@@ -145,29 +145,32 @@ while True:
         tiles_left = scoreboard.subtract_tiles(cur_player, len(diffs))
         game_board.add_diffs(diffs) #Update game board w/ the changes
         round_completed = scoreboard.add_move(cur_player, total_score, words_with_scores)
+        finished = False
         if tiles_left == 0:
             #Game over!
             print "Game finished! %s is out of letters!" % cur_player
             player_out = cur_player
             voice.say("%s is out of letters. The game is over." % cur_player)
-            break
+            finished = True
         elif round_completed:
             voice.say("End of round %d." % (scoreboard.turn_round - 1))
             leader, points = scoreboard.get_scores()[0]
             voice.say("%s is in the lead with %d points." % (leader, points))
-            print "Letters remaining in bag: %d" % scoreboard.get_tiles_in_bag()
             #voice.say("There are %d letters left in the bag." % scoreboard.get_tiles_in_bag())
         if scoreboard.get_tiles_in_bag() == 0 and (not no_letters_warned):
             no_letters_warned = True
             print "No more letters!"
             voice.say("There are no more letters in the bag.")
 
+        print "Letters remaining in bag: %d" % scoreboard.get_tiles_in_bag()
         sbox.update_scores(scoreboard.points)              
 
         #Pickle away game state in case of crash
         pickle.dump( (scoreboard, game_board) , open(PICKLE_FILENAME, "wb"))
+        
+        if finished:
+            break
 
-    #TODO: End-game condition
 
 #Perform end-game out of letter checks
 for p in scoreboard.player_list:
@@ -184,6 +187,7 @@ for p in scoreboard.player_list:
         scoreboard.add_adjustment(player_out, total_points)
         print "%d points transferred from %s to %s" % (total_points, p, player_out)
 
+sbox.update_scores(scoreboard.points)              
 final_scores = scoreboard.get_scores()
 winner, winning_score = final_scores[0]
 
