@@ -1,4 +1,5 @@
 TILES_IN_GAME = 98 #100 with blanks
+
 TILES_PER_PLAYER = 7
 
 class Scoreboard:
@@ -23,6 +24,7 @@ class Scoreboard:
 
         self.turn = 0
         self.turn_round = 1
+
 
     #Adds move to scoreboard returns True if a round was just completed
     def add_move(self, player, points, move):
