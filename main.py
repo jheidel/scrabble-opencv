@@ -64,6 +64,7 @@ signal.signal(signal.SIGINT, signal_handler)
 player_out = None
 prev_leader = None
 no_letters_warned = False
+last_skip = dict(map(lambda x: (x,False), scoreboard.player_list))
 
 while True:
 
@@ -126,7 +127,9 @@ while True:
 
     if total_score == 0:
         voice.say("%s skips turn." % cur_player)
+        last_skip[cur_player] = True
     else:
+        last_skip[cur_player] = False
         voice.say("%s plays %s %s%s." % (cur_player, ", and ".join(strs), extra_str, ("for a total of %d points" % total_score) if len(strs) > 1 or extra_str != "" else ""))
 
     
@@ -149,11 +152,16 @@ while True:
         game_board.add_diffs(diffs) #Update game board w/ the changes
         round_completed = scoreboard.add_move(cur_player, total_score, words_with_scores)
         finished = False
+        print str(last_skip)
         if tiles_left == 0:
             #Game over!
             print "Game finished! %s is out of letters!" % cur_player
             player_out = cur_player
             voice.say("%s is out of letters. The game is over." % cur_player)
+            finished = True
+        elif all(last_skip.values()) and scoreboard.get_tiles_in_bag() == 0: #All players have skipped @ end of game
+            print "All players have skipped. Game is over."
+            voice.say("All players have skipped their turns. The game is over.")
             finished = True
         elif round_completed:
             voice.say("End of round %d." % (scoreboard.turn_round - 1))
@@ -181,21 +189,22 @@ while True:
 sbox.highlight(None)
 
 #Perform end-game out of letter checks
-for p in scoreboard.player_list:
-    if p != player_out: 
-        letter_count = scoreboard.tiles[p]
-        query = ("Which %s does %s have left?" % (("%d letters" % letter_count) if letter_count > 1 else "letter",p))
-        voice.say(query)
-        r = ask("%s (input as a list separated by commas)" % query)
-        letters = map(lambda x: x.strip().lower(), r.split(','))
-        total_points = sum(map(get_letter_points, letters))
-        
-        #Give these points to the player who went out
-        scoreboard.add_adjustment(p, -1 * total_points)
-        scoreboard.add_adjustment(player_out, total_points)
-        print "%d points transferred from %s to %s" % (total_points, p, player_out)
-        voice.say("%s get %d points from %s." % (player_out, total_points, p))
-        sbox.update_scores(scoreboard.points)              
+if not all(last_skip.values()): #Game didn't end due to all-skip condition
+    for p in scoreboard.player_list:
+        if p != player_out: 
+            letter_count = scoreboard.tiles[p]
+            query = ("Which %s does %s have left?" % (("%d letters" % letter_count) if letter_count > 1 else "letter",p))
+            voice.say(query)
+            r = ask("%s (input as a list separated by commas)" % query)
+            letters = map(lambda x: x.strip().lower(), r.split(','))
+            total_points = sum(map(get_letter_points, letters))
+            
+            #Give these points to the player who went out
+            scoreboard.add_adjustment(p, -1 * total_points)
+            scoreboard.add_adjustment(player_out, total_points)
+            print "%d points transferred from %s to %s" % (total_points, p, player_out)
+            voice.say("%s get %d points from %s." % (player_out, total_points, p))
+            sbox.update_scores(scoreboard.points)              
 
 sbox.update_scores(scoreboard.points)              
 final_scores = scoreboard.get_scores()
