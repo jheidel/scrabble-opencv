@@ -44,14 +44,18 @@ else:
     voice.say("Starting game!")
 
 #Create scorebox
-sbox = ScoreBox(scoreboard.points)
+sbox = ScoreBox(scoreboard.player_list)
 sbox.start()
+sbox.set_letters(scoreboard.get_tiles_in_bag())
+sbox.set_rnd(scoreboard.turn_round)
+sbox.update_scores(scoreboard.points)
 
 #Register interrupt handler
 def signal_handler(signal, frame):
     print "\nProgram terminating!"
     voice.kill()
     sv.kill()
+    sbox.kill()
     sys.exit(0)
 
 signal.signal(signal.SIGINT, signal_handler)
@@ -62,7 +66,6 @@ no_letters_warned = False
 
 while True:
 
-    #TODO Inform player turn
     cur_player = scoreboard.get_player_turn()
 
     print "====== SCORES ======"
@@ -73,6 +76,7 @@ while True:
 
     print "-- Begin %s's turn --" % cur_player 
     voice.say("%s's turn!" % cur_player)
+    sbox.highlight(cur_player)
     
     while True:
         rsp = ask("Push enter to register move").lower().strip()
@@ -90,8 +94,6 @@ while True:
     new_board = sv.get_current_board() 
     new_board.merge(game_board)
     diffs = Board.differences(game_board, new_board)
-
-    #TODO: Check for letters that have gone None 
 
     new_words = set()
 
@@ -122,7 +124,7 @@ while True:
     print "==Total score for turn: %d points" % total_score
 
     if total_score == 0:
-        voice.say("%s skips this turn." % cur_player)
+        voice.say("%s skips turn." % cur_player)
     else:
         voice.say("%s plays %s %s%s." % (cur_player, ", and ".join(strs), extra_str, ("for a total of %d points" % total_score) if len(strs) > 1 or extra_str != "" else ""))
 
@@ -164,6 +166,8 @@ while True:
 
         print "Letters remaining in bag: %d" % scoreboard.get_tiles_in_bag()
         sbox.update_scores(scoreboard.points)              
+        sbox.set_rnd(scoreboard.turn_round)
+        sbox.set_letters(scoreboard.get_tiles_in_bag())
 
         #Pickle away game state in case of crash
         pickle.dump( (scoreboard, game_board) , open(PICKLE_FILENAME, "wb"))
@@ -171,6 +175,7 @@ while True:
         if finished:
             break
 
+sbox.highlight(None)
 
 #Perform end-game out of letter checks
 for p in scoreboard.player_list:
@@ -186,10 +191,12 @@ for p in scoreboard.player_list:
         scoreboard.add_adjustment(p, -1 * total_points)
         scoreboard.add_adjustment(player_out, total_points)
         print "%d points transferred from %s to %s" % (total_points, p, player_out)
+        voice.say("%s get %d points from %s." % (player_out, total_points, p))
 
 sbox.update_scores(scoreboard.points)              
 final_scores = scoreboard.get_scores()
 winner, winning_score = final_scores[0]
+sbox.highlight(winner)
 
 print "-------------------"
 
@@ -204,8 +211,7 @@ for player, points in final_scores[1:]:
 print "-------------------"
 
 
-
-signal.pause() #Wait for ending signal
+signal.pause() #Wait for ending signal (ctrl+C)
 
 
 

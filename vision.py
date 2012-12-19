@@ -409,6 +409,10 @@ class ScrabbleVision(Thread):
                                 dst = d
                                 crnr = pc
                         #print "Closest to %s is %d" % (str(point), dst)
+                        if crnr is None:
+                            if configs.DEBUG:
+                                print "Unable to find any corners"
+                            raise IterSkip()
                         return crnr
 
                     """
