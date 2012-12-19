@@ -61,12 +61,18 @@ while True:
     #TODO Inform player turn
     cur_player = scoreboard.get_player_turn()
 
+    print "====== SCORES ======"
+    scores = scoreboard.get_scores()
+    for player, points in scores:
+        print "%s: %d points" % (player, points)
+    print "===================="
+
     print "-- Begin %s's turn --" % cur_player 
-    print "Letters %s Players boards: %s" % (scoreboard.tile_count, scoreboard.tiles)
     voice.say("%s's turn!" % cur_player)
     rsp = ask("Push enter to register move").lower().strip()
-    
+
     if rsp == "lookup":
+        #TODO: implement
         pass
     else:
         
@@ -155,7 +161,7 @@ while True:
 for p in scoreboard.player_list:
     if p != player_out: 
         voice.say("Which letters does %s have left?" % p)
-        letter_count = len(scoreboard.tiles[p])
+        letter_count = scoreboard.tiles[p]
         r = ask("Which %s does %s have left? (input as a list separated by commas)" % (("%d letters" % letter_count) if letter_count > 1 else "letter",p))
         letters = map(lambda x: x.strip().lower(), r.split(','))
         total_points = sum(map(get_letter_points, letters))
