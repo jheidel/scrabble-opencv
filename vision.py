@@ -282,10 +282,9 @@ class ScrabbleVision(Thread):
             vc = cv2.VideoCapture(-1)
 
             if vc.isOpened(): # try to get the first frame
-                rval, frame = vc.read()
+                rval, frame_raw = vc.read()
             else:
                 rval = False
-
 
             while rval:
 
@@ -300,20 +299,22 @@ class ScrabbleVision(Thread):
                 #BEGIN PROCESSING
                 try:
 
-                    #POST("RAW", frame)
+                    
+                    frame = cv2.flip(frame_raw, flipCode=-1)
+                    POST("RAW", frame)
 
                     luv = cv2.split(cv2.cvtColor(frame, cv2.COLOR_RGB2LUV))
 
                     v_chan = luv[2]
 
-                    POST("V", v_chan)
+                    #POST("V", v_chan)
 
                     blur = cv2.GaussianBlur(v_chan, (configs.BLUR_RAD,configs.BLUR_RAD), 0)
 
-                    POST("blur", blur)
+                    #POST("blur", blur)
                     thresh = cv2.adaptiveThreshold(blur, 255, 0, 1, configs.BOARD_THRESH_PARAM, configs.BOARD_BLOCK_SIZE)
 
-                    POST("thresh", thresh)
+                    #POST("thresh", thresh)
 
                     erode = cv2.erode(thresh, element)
                     erode = cv2.dilate(erode, element2)
@@ -530,7 +531,7 @@ class ScrabbleVision(Thread):
                 #next itr
                 self.started = True
                 key = cv2.waitKey(50)
-                rval, frame = vc.read()
+                rval, frame_raw = vc.read()
 
             print "Terminating..."
 
