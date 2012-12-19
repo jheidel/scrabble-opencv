@@ -155,7 +155,8 @@ while True:
 for p in scoreboard.player_list:
     if p != player_out: 
         voice.say("Which letters does %s have left?" % p)
-        r = ask("Which letters does %s have left? (input as a list separated by commas)")
+        letter_count = len(scoreboard.tiles[p])
+        r = ask("Which %s does %s have left? (input as a list separated by commas)" % (("%d letters" % letter_count) if letter_count > 1 else "letter",p))
         letters = map(lambda x: x.strip().lower(), r.split(','))
         total_points = sum(map(get_letter_points, letters))
         
@@ -178,9 +179,6 @@ for player, points in final_scores[1:]:
     voice.say("%s finished with %d points." % (player,points))
 
 print "-------------------"
-
-        
-
 
 
 
