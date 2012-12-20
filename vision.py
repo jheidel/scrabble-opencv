@@ -131,8 +131,10 @@ def classify_letter(image, draw=False):
     l_chan = luv[2]
 
     #-----
+    shift = configs.BLANK_PATCH_BL_SHIFT
+
     gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-    gray =  cv2.getRectSubPix(gray, (configs.BLANK_DETECT_SIZE,configs.BLANK_DETECT_SIZE), (64,64)) 
+    gray =  cv2.getRectSubPix(gray, (configs.BLANK_DETECT_SIZE,configs.BLANK_DETECT_SIZE), (64-shift,64+shift)) 
     gray = cv2.GaussianBlur(gray, (5,5), 0)
 
     mean, stddev = cv2.meanStdDev(gray)
