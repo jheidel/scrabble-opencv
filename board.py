@@ -31,6 +31,55 @@ class Board:
                     diffs.append((i,j,new.get(i,j)))
         return diffs
 
+    #Takes a set of diffs and makes sure they're a valid move (i.e all letters in a single line)
+    def verify_diffs(self, diffs):
+        points = map(lambda (a,b,c): (a,b), diffs)
+        x_p = map(lambda (a,b): a, points)
+        y_p = map(lambda (a,b): b, points)
+
+        if len(set(x_p)) == 1: #All elements are lined up vertically
+            o_p = y_p
+            from_board = map(lambda (c,d): c, filter(lambda (a,b): b is not None, [(y, self.get(x_p[0], y)) for y in range(0,Board.SIZE)]))
+        elif len(set(y_p)) == 1: #All elements are lined up horizontally
+            o_p = x_p
+            from_board = map(lambda (c,d): c, filter(lambda (a,b): b is not None, [(x, self.get(x, y_p[0])) for x in range(0,Board.SIZE)]))
+        else:
+            #Elements are not all in one line
+            return False
+    
+        #Make sure all the values in o_p are continuous
+        o_p.sort()
+      
+        #Get anything on the board between the min and max letters we placed
+        board_relevant = filter(lambda x: x > o_p[0] and x < o_p[-1], from_board)
+        print "Board relevant: " + str(board_relevant)
+        
+        #get row from board
+        o_p += board_relevant
+        o_p.sort()
+
+        #Make sure all values are continuous
+        paired = zip(o_p, o_p[1:])
+        continuous_values = all(map(lambda (a,b): b == a+1, paired))
+
+        if not continuous_values:
+            return False
+
+        #Verify that at least one letter is next to an existing letter (unless board is empty)
+        def next_to_existing_letter((i,j)):
+            return (self.get(i+1,j) is not None) or (self.get(i-1, j) is not None) or (self.get(i, j-1) is not None) or (self.get(i, j+1) is not None)
+
+        def board_is_empty():
+            return all(map(lambda x: x is None, self.board))
+
+        if not any(map(next_to_existing_letter, points)):
+            #Check if the board is empty
+            if not board_is_empty():
+                return False
+       
+        #All checks pass
+        return True
+
     #Adds a set of differences to this board
     def add_diffs(self, diffs):
         for (x,y,c) in diffs:

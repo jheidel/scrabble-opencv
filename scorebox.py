@@ -53,7 +53,7 @@ class ScoreBox(Thread):
     def set_clock_color(self, color):
         while self.master is None:
             pass
-        Label(self.master, fg=color, textvariable=self.clock_txt, font=("Helvetica", 35)).grid(row=4, column=len(self.player_list) - 1, sticky=W, padx=10, pady=10)
+        Label(self.master, fg=color, textvariable=self.clock_txt, font=("Helvetica", 35)).grid(row=4, column=len(self.player_list) - 1, sticky=E, padx=10, pady=10)
 
     def run(self):
         self.master = Tk()

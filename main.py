@@ -119,6 +119,16 @@ while True:
     new_board.merge(game_board)
     diffs = Board.differences(game_board, new_board)
 
+    if not game_board.verify_diffs(diffs):
+        #The letters played are invalid
+        print "!! Invalid set of letters played. The given letters are not a single, valid"
+        print "word. Please check the camera view to make sure all letters are being detected"
+        print "properly and that there are no stray letters being picked up."
+        print "For reference: the following diffs were detected:"
+        print str(diffs)
+        voice.say("Error. Invalid move. Check vision.")
+        continue
+
     new_words = set()
 
     for (x,y,c) in diffs:
