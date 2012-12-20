@@ -8,6 +8,8 @@ import signal, sys
 from scoring import *
 import pickle
 from scorebox import ScoreBox
+from gameclock import GameClock
+import configs
 
 def ask(s):
     return str(raw_input(str(s) + "\n> "))
@@ -43,6 +45,7 @@ else:
 
     voice.say("Starting game!")
 
+
 #Create scorebox
 sbox = ScoreBox(scoreboard.player_list)
 sbox.start()
@@ -50,12 +53,17 @@ sbox.set_letters(scoreboard.get_tiles_in_bag())
 sbox.set_rnd(scoreboard.turn_round)
 sbox.update_scores(scoreboard.points)
 
+#Game clock
+clock = GameClock(sbox)
+clock.start()
+
 #Register interrupt handler
 def signal_handler(signal, frame):
     print "\nProgram terminating!"
     voice.kill()
     sv.kill()
     sbox.kill()
+    clock.kill()
     sys.exit(0)
 
 signal.signal(signal.SIGINT, signal_handler)
@@ -67,6 +75,9 @@ no_letters_warned = False
 last_skip = dict(map(lambda x: (x,False), scoreboard.player_list))
 
 while True:
+    reload(configs)
+    clock.warn_thresh = int(configs.WARN_TIME * 60) if configs.WARN_TIME > 0 else None
+    clock.alarm_thresh = int(configs.ALARM_TIME * 60) if configs.ALARM_TIME > 0 else None
 
     cur_player = scoreboard.get_player_turn()
 
@@ -79,6 +90,8 @@ while True:
     print "-- Begin %s's turn --" % cur_player 
     voice.say("%s's turn!" % cur_player)
     sbox.highlight(cur_player)
+
+    clock.clock_start()
     
     while True:
         rsp = ask("Push enter to register move").lower().strip()
@@ -88,10 +101,19 @@ while True:
             wrd = splitted[1]
             in_dict = twl.check(wrd)
             print "The word %s %s in the dictionary." % (wrd, "is" if in_dict else "IS NOT")
-        else:
+        elif splitted[0] == "pause":
+            print "Turn clock paused"
+            clock.clock_stop()
+        elif splitted[0] == "resume":
+            print "Resuming turn clock"
+            clock.clock_start()
+        elif splitted[0] == "":
             break
+        else:
+            print "Command not recognized."
 
-    
+    clock.clock_stop()
+
     #Process board and differences
     new_board = sv.get_current_board() 
     new_board.merge(game_board)
@@ -152,7 +174,7 @@ while True:
         game_board.add_diffs(diffs) #Update game board w/ the changes
         round_completed = scoreboard.add_move(cur_player, total_score, words_with_scores)
         finished = False
-        print str(last_skip)
+        clock.clock_reset()
         if tiles_left == 0:
             #Game over!
             print "Game finished! %s is out of letters!" % cur_player
@@ -187,6 +209,8 @@ while True:
             break
 
 sbox.highlight(None)
+clock.clock_stop()
+clock.clock_reset()
 
 #Perform end-game out of letter checks
 if not all(last_skip.values()): #Game didn't end due to all-skip condition

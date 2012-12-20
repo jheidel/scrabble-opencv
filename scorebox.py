@@ -1,4 +1,4 @@
-from Tkinter import *
+from mtTkinter import *
 from threading import Thread, Lock
 
 
@@ -46,6 +46,14 @@ class ScoreBox(Thread):
             Label(self.master, text=str(p), fg=color, font=("Helvetica", 47)).grid(row=0, column=i)
             i += 1
 
+    def set_clock_text(self, txt, small_txt):
+        self.wait_for_started()
+        self.clock_txt.set(txt)
+        
+    def set_clock_color(self, color):
+        while self.master is None:
+            pass
+        Label(self.master, fg=color, textvariable=self.clock_txt, font=("Helvetica", 35)).grid(row=4, column=len(self.player_list) - 1, sticky=W, padx=10, pady=10)
 
     def run(self):
         self.master = Tk()
@@ -75,6 +83,9 @@ class ScoreBox(Thread):
         self.rnd = StringVar()
         self.rnd.set("#1")
         Label(self.master, textvariable=self.rnd, font=("Helvetica", 40)).grid(row=3, column=i, sticky=E, padx=10)
+
+        self.clock_txt = StringVar() 
+
 
         self.started = True
 
