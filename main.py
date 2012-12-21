@@ -139,6 +139,16 @@ while True:
         if wv is not None:
             new_words.add(wv)
 
+    #Prompt that the resolver function requires
+    def blank_prompt(x,y):
+        voice.say("Blank detected. Please input letter.")
+        r = ask("Blank detected at position (%d,%d). What letter would you like to assign?" % (x,y))
+        return str(r).strip().lower()
+
+    Board.blank_resolver(diffs, new_words, new_board, blank_prompt) 
+    #Blanks must be resolved at this point for the diffs and new_words' strings must be fixed
+    #And new board must be updated 
+    
     words_with_scores = map(lambda x: (new_board.score_word(x, diffs),x), new_words) 
     words_with_scores.sort(reverse=True)
 

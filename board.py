@@ -21,6 +21,45 @@ class Board:
         b.board = list(self.board)
         return b
 
+    #Gets the nearest points around (x,y) that are non none
+    def get_nearest_not_none(self, x,y, num):
+        matches = []
+
+        def search_ring(n):
+            ring_matches = []
+            i = x - n
+            j = y - n
+            def check_and_append(a,b):
+                p = self.get(a,b)
+                if p is not None:
+                    ring_matches.append(p)
+
+            #Check top of box
+            while i < x + n:
+                check_and_append(i,j)
+                i += 1
+            #Check right side of box
+            while j < y + n:
+                check_and_append(i,j)
+                j += 1
+            #Check bottom of box
+            while i > x - n:
+                check_and_append(i,j)
+                i -= 1
+            #Check left side of box
+            while j > y - n:
+                check_and_append(i,j)
+                j -= 1
+            return ring_matches
+        
+        cring = 1
+        while len(matches) < num and cring < 14:
+            matches += search_ring(cring)
+            cring += 1
+        
+        return matches[:num]
+
+
     #Returns differences between two boards in (x,y, new content from b2) tuples
     @classmethod
     def differences(cls, old, new):
@@ -114,7 +153,7 @@ class Board:
 
         #Read out the word
         while self.get(sx, sy) != None:
-            word += self.get(sx, sy)
+            word += str(self.get(sx, sy))
             if horizontal:
                 sx += 1
             else:
@@ -124,7 +163,31 @@ class Board:
             return None
 
         return (word, word_start, horizontal)
-    
+
+    @classmethod
+    def blank_resolver(cls, diffs, word_set, new_board, blank_prompter):
+        #This method must: 
+        #Blanks must be resolved at this point for the diffs and word set' strings must be fixed
+        #And new board must be updated 
+       
+        #TODO: Intelligent auto-blank resolution from dictionary detection
+
+        #Resolve all blanks in our diff set
+        for (i,j,v) in diffs:
+            if v == '-':
+                blnk = Blank(blank_prompter(i,j))
+                diffs.remove((i,j,v))
+                diffs.append((i,j,blnk))
+                new_board.set(i,j,blnk)
+
+        #Fix our detected word set
+        for (word, pt, horizontal) in word_set:
+            if '-' in word:
+                (x,y) = pt
+                new_word = new_board.get_word(x,y,horizontal)
+                word_set.remove((word,pt,horizontal))
+                word_set.add(new_word)
+
     #Scores a word given the new board and the list of diffs
     def score_word(self, (word, word_start, horizontal), diffs):
 

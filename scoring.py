@@ -1,4 +1,10 @@
 
+class Blank:
+    def __init__(self, l):
+        #The letter that this blank has been assigned
+        self.letter = l
+    def __str__(self):
+        return str(self.letter)
 
 
 letter_points = {'a': 1,
@@ -29,6 +35,8 @@ letter_points = {'a': 1,
                  'z': 10}
 
 def get_letter_points(c):
+    if isinstance(c, Blank):
+        return 0 #Blanks are 0 points
     if c not in letter_points:
         raise ValueError
     return letter_points[c]

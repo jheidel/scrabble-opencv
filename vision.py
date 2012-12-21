@@ -122,7 +122,7 @@ else:
 
 
 
-def classify_letter(image, draw=False):
+def classify_letter(image, x, y, draw=False, blank_board=None):
     image = cv2.resize(image, (128,128))
     if draw:
         POST("letter start", image)
@@ -135,18 +135,21 @@ def classify_letter(image, draw=False):
 
     gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     gray =  cv2.getRectSubPix(gray, (configs.BLANK_DETECT_SIZE,configs.BLANK_DETECT_SIZE), (64-shift,64+shift)) 
-    gray = cv2.GaussianBlur(gray, (5,5), 0)
+    gray = cv2.GaussianBlur(gray, (3,3), 0)
 
     mean, stddev = cv2.meanStdDev(gray)
+    norm_mean = stddev / mean * 100
     
     if draw:
         POST("OC", gray)
-        print "Mean is %.2f and stddev is %.2f" % (mean, stddev)
+        print "Mean is %.2f and stddev is %.2f; experimental norm mean is %.2f" % (mean, stddev, norm_mean)
 
-    if stddev < configs.STD_DEV_THRESH:
+    if norm_mean < configs.STD_DEV_THRESH:
         #square is blank!
         if draw:
             print "Dropped due to blank"
+        if blank_board is not None:
+            blank_board.set(x, y, mean)
         return None
 
 
@@ -491,8 +494,10 @@ class ScrabbleVision(Thread):
                    
                     if configs.TRAIN:
                         img = get_sub_image(norm, configs.COORD_X, configs.COORD_Y)
-                        classify_letter(img, draw=True)
+                        classify_letter(img, configs.COORD_X, configs.COORD_Y, draw=True)
                     else:
+
+                        blank_b = Board()
 
                         letter_draw = norm_draw.copy()
                         y = configs.TSTEP
@@ -501,16 +506,41 @@ class ScrabbleVision(Thread):
                             x = configs.LSTEP
                             for i in range(0,15):
                                 img = get_sub_image(norm, i,j)
-                                r = classify_letter(img, draw=(configs.DEBUG and i == configs.COORD_X and j == configs.COORD_Y))
-                                new_info(i,j,r)
+                                r = classify_letter(img, i, j, draw=(configs.DEBUG and i == configs.COORD_X and j == configs.COORD_Y), blank_board=blank_b)
+                                in_blank = (blank_b.get(i,j) is not None)
+                                if not in_blank:
+                                    new_info(i,j,r)
                                 if r is not None:
                                     cv2.putText(letter_draw, str(r.upper()), (int(x)+7,int(y)+22), cv2.FONT_HERSHEY_COMPLEX, 0.7, (255,255,255))
                                 x += float(configs.SIZE-configs.LSTEP-configs.RSTEP) / 15
                             y += float(configs.SIZE-configs.TSTEP-configs.BSTEP) / 15
 
+
+                        #Analyze blank board to determine which are blanks and which are empty spaces
+                        #TOOD: analyze blank_b
+                        for i in range(0,15):
+                            for j in range(0,15):
+                                r = blank_b.get(i,j)
+                                if r is not None:
+                                    nearest = np.array(blank_b.get_nearest_not_none(i,j, configs.BLANK_NEIGHBORS))
+                                    mean = np.mean(nearest)
+                                    std = np.std(nearest)
+                                    z = abs(r - mean) / std
+
+                                    if configs.DEBUG and i == configs.COORD_X and j == configs.COORD_Y:
+                                        print "Color is %d; mean of nearest %d neighbors is %.2f, std is %.2f, z is %.2f" % (r, configs.BLANK_NEIGHBORS, mean, std, z) 
+                                    if z > configs.BLANK_Z_THRESH:
+                                        #This is a blank!
+                                        new_info(i,j,'-')
+                                    else:
+                                        new_info(i,j,None) #not a blank
+
+                                    
                         POST("letter draw", letter_draw)
 
-                        
+
+                       
+                        #Conduct averaging of the given letters
                         avg_draw = norm_draw.copy()
 
                         with self.l:
