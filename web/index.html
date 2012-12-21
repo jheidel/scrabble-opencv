@@ -1,0 +1,63 @@
+<head>
+<title>Scrabble Game Server</title>
+
+<script langauge="javascript" src="ajax.js"></script>
+<script language="Javascript">
+    
+    function update_parts() {
+        board = AjaxResponse("board");
+        scores = AjaxResponse("scores");
+        document.getElementById("board").innerHTML = board;
+        document.getElementById("scores").innerHTML = scores;
+    }
+
+    prev_val = -1;
+    function run_once() {
+        prev_val = AjaxResponse("check");
+        update_parts();
+        setTimeout("update()", 300);
+    }
+
+    function update(){
+        new_val = AjaxResponse("check");
+        if (new_val != prev_val && new_val != -1) {
+            prev_val = new_val;
+            update_parts();
+        }
+        setTimeout("update()", 300);
+    }
+
+    function dict_lookup(){
+        alert(AjaxResponse("dict", document.getElementById("wrd").value));
+        document.getElementById("wrd").value = "";
+    }
+
+</script>
+
+
+</head>
+
+<body onload="run_once()">
+<center>
+<h3>Scrabble Game Server</h3>
+<hr width=100>
+
+<div id="board"></div>
+
+<br>
+
+<h4>Scores</h4>
+<hr width=30>
+
+<div id="scores"></div>
+
+<h4>Dictionary Lookup</h4>
+<hr width=30>
+<form action="javascript:dict_lookup()">
+<input type=text id="wrd"><input type="submit" value="Look Up">
+</form>
+
+</center>
+</body>
+
+

@@ -10,6 +10,7 @@ import pickle
 from scorebox import ScoreBox
 from gameclock import GameClock
 import configs
+import webserver
 
 def ask(s):
     return str(raw_input(str(s) + "\n> "))
@@ -57,6 +58,10 @@ sbox.update_scores(scoreboard.points)
 clock = GameClock(sbox)
 clock.start()
 
+#STart up the webserver
+serve = webserver.ScrabbleServer(game_board, scoreboard)
+serve.start()
+
 #Register interrupt handler
 def signal_handler(signal, frame):
     print "\nProgram terminating!"
@@ -64,6 +69,7 @@ def signal_handler(signal, frame):
     sv.kill()
     sbox.kill()
     clock.kill()
+    serve.kill()
     sys.exit(0)
 
 signal.signal(signal.SIGINT, signal_handler)
@@ -90,6 +96,8 @@ while True:
     print "-- Begin %s's turn --" % cur_player 
     voice.say("%s's turn!" % cur_player)
     sbox.highlight(cur_player)
+    
+    serve.refresh()
 
     clock.clock_start()
     
@@ -231,6 +239,7 @@ while True:
 sbox.highlight(None)
 clock.clock_stop()
 clock.clock_reset()
+serve.refresh()
 
 #Perform end-game out of letter checks
 if not all(last_skip.values()): #Game didn't end due to all-skip condition
@@ -254,6 +263,7 @@ sbox.update_scores(scoreboard.points)
 final_scores = scoreboard.get_scores()
 winner, winning_score = final_scores[0]
 sbox.highlight(winner)
+serve.refresh()
 
 print "-------------------"
 
