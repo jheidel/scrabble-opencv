@@ -217,7 +217,7 @@ class Board:
         Board.auto_resolve_blanks(diffs, new_board, word_set)
 
         #Resolve all remaining blanks in our diff set
-        for (i,j,v) in diffs:
+        for (i,j,v) in list(diffs):
             if v == '-':
                 blnk = Blank(blank_prompter(i,j))
                 diffs.remove((i,j,v))
