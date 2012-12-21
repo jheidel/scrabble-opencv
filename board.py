@@ -1,4 +1,5 @@
 from scoring import *
+import twl #for auto blank resolution
 
 class Board:
     SIZE = 15
@@ -164,15 +165,58 @@ class Board:
 
         return (word, word_start, horizontal)
 
+    #Brute force test of all blanks against dictionary in an attempt to resolve it ourselves
+    @classmethod
+    def auto_resolve_blanks(cls, diffs, new_board, word_set):
+        count = 0
+        x = 0
+        y = 0
+        for (i,j,v) in diffs:
+            if v == '-':
+                x = i
+                y = j
+                count += 1
+        if count != 1:
+            return  #Auto resolver can only resolve exactly one blank at the moment
+
+        letters = letter_points.keys()
+        test_board = new_board.copy()
+        possible_letters = []
+
+        #Test word set with all possible letters
+        for l in letters:
+            #Make testing change in the test board
+            test_board.set(x,y,l)
+            new_words = []
+
+            #Get set of new words resulting from this change
+            for (word, (a,b), horizontal) in word_set:
+                if '-' in word:
+                    (new_wrd,j,k) = test_board.get_word(a,b,horizontal)
+                    new_words.append(new_wrd)
+
+            if all(map(twl.check, new_words)):
+                possible_letters.append(l) #All new words pass dictionary check
+
+        print "Possible letters for blank: %s" % str(possible_letters)
+
+        if len(possible_letters) == 1:
+            l = possible_letters[0]
+            print "Auto resolving blank to %s" % l
+            diffs.remove((x,y,'-'))
+            diffs.append((x,y,l))
+            new_board.set(x,y,l)
+
     @classmethod
     def blank_resolver(cls, diffs, word_set, new_board, blank_prompter):
         #This method must: 
         #Blanks must be resolved at this point for the diffs and word set' strings must be fixed
         #And new board must be updated 
-       
-        #TODO: Intelligent auto-blank resolution from dictionary detection
+        
+        #Attempt to automatically resolve blanks using our dictionary
+        Board.auto_resolve_blanks(diffs, new_board, word_set)
 
-        #Resolve all blanks in our diff set
+        #Resolve all remaining blanks in our diff set
         for (i,j,v) in diffs:
             if v == '-':
                 blnk = Blank(blank_prompter(i,j))
