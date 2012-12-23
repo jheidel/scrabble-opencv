@@ -278,6 +278,22 @@ for player, points in final_scores[1:]:
 print "-------------------"
 
 
+
+sayings = ["Have a nice day.",
+           "Good game.",
+           "Enjoy the rest of your day.",
+           "yo-lo",
+           "Good bye!",
+           "Good job %s." % winner,
+           "Thanks for playing.",
+           "Thank you.",
+           "Thank you and have a pleasant day."]
+
+from random import randint
+
+#Say one of the random end-game sayings
+voice.say(sayings[randint(0, len(sayings)-1)])
+
 signal.pause() #Wait for ending signal (ctrl+C)
 
 

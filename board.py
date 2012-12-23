@@ -77,6 +77,10 @@ class Board:
         x_p = map(lambda (a,b): a, points)
         y_p = map(lambda (a,b): b, points)
 
+        if len(diffs) == 0:
+            #Skip trun
+            return True
+
         if len(set(x_p)) == 1: #All elements are lined up vertically
             o_p = y_p
             from_board = map(lambda (c,d): c, filter(lambda (a,b): b is not None, [(y, self.get(x_p[0], y)) for y in range(0,Board.SIZE)]))

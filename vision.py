@@ -75,18 +75,18 @@ def lookup_char(x,y):
 
     if len(dd) == 0:
         return None
-   
-    """
+  
+
     if dd[0][1] == None and len(dd) >= 2:
-        nc = d[0][0]
+        nc = dd[0][0]
         ncf = float(nc) / len(a)
         if ncf != 1:
-            print "nc IS %.2f" % ncf
+            if configs.DEBUG and x == configs.COORD_X and y == configs.COORD_Y:
+                print "nc IS %.2f" % ncf
         if ncf > configs.BLANK_REQ_PERCENT:
             return None
         else:
             dd.remove(dd[0])
-    """
 
     return dd[0][1]
     

@@ -15,7 +15,7 @@
     function run_once() {
         prev_val = AjaxResponse("check");
         update_parts();
-        setTimeout("update()", 300);
+        setTimeout("update()", 1000);
     }
 
     function update(){
@@ -24,7 +24,7 @@
             prev_val = new_val;
             update_parts();
         }
-        setTimeout("update()", 300);
+        setTimeout("update()", 1000);
     }
 
     function dict_lookup(){
@@ -56,6 +56,23 @@
 <form action="javascript:dict_lookup()">
 <input type=text id="wrd"><input type="submit" value="Look Up">
 </form>
+
+<h5>With definitions</h5>
+<hr width=30>
+<object class="rich-media-swf" classid='clsid:D27CDB6E-AE6D-11cf-96B8-444553540000' codebase='http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,0,0' width="380" height="165"> 
+
+        <param name='movie' value="http://www.collinsdictionary.com/data/rich-media/scrabble-1.swf">
+
+                <param name='quality' value="high">
+
+                        <param name='bgcolor' value='#FFFFFF'>
+
+                                <param name='loop' value="false">
+
+                                        <embed class="rich-media-swf" src="http://www.collinsdictionary.com/data/rich-media/scrabble-1.swf" quality='high' bgcolor='#FFFFFF' width="380" height="165" loop="false" type='application/x-shockwave-flash' pluginspage='http://www.macromedia.com/shockwave/download/index.cgi?P1_Prod_Version=ShockwaveFlash'></embed>
+
+                                        </object>
+
 
 </center>
 </body>
