@@ -51,7 +51,7 @@ class MainHandler(tornado.web.RequestHandler):
             self.write(sg)
         elif params["m"] == "dict":
             word = params["d"]
-            if twl.check(word):
+            if twl.check(word.strip().lower()):
                 os.system("beep -f 150 -l 10 &>/dev/null &") #dictionary lookup beep
                 self.write("The word %s is in the dictionary." % word)
             else:

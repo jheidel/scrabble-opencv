@@ -14,8 +14,14 @@ class Speaker(Thread):
             self.q.insert(0, phrase)
             self.c.notify()
 
+    def beep(self):
+        os.system("beep -f 500 -l 200; beep -f 125 -l 400 &>/dev/null")
+
     def _speak(self, txt):
-        os.system("espeak \"%s\" 2>/dev/null >/dev/null" % txt)
+        if txt == "beep":
+            self.beep()
+        else:
+            os.system("espeak \"%s\" 2>/dev/null >/dev/null" % txt)
 
     def kill(self):
         with self.c:

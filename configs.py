@@ -24,8 +24,8 @@ BSTEP = 7
 
 SIDE_DEV_THRESH = 0.10
 
-TL_X = 3
-TL_Y = -7
+TL_X = 1
+TL_Y = -13
 BR_X = 0
 BR_Y = 0
 

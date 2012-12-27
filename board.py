@@ -208,8 +208,9 @@ class Board:
             l = possible_letters[0]
             print "Auto resolving blank to %s" % l
             diffs.remove((x,y,'-'))
-            diffs.append((x,y,l))
-            new_board.set(x,y,l)
+            blnk = Blank(l)
+            diffs.append((x,y,blnk))
+            new_board.set(x,y,blnk)
 
     @classmethod
     def blank_resolver(cls, diffs, word_set, new_board, blank_prompter):

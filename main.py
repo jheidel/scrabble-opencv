@@ -11,6 +11,7 @@ from scorebox import ScoreBox
 from gameclock import GameClock
 import configs
 import webserver
+from dictionary import DictLookup
 
 def ask(s):
     return str(raw_input(str(s) + "\n> "))
@@ -109,12 +110,21 @@ while True:
             wrd = splitted[1]
             in_dict = twl.check(wrd)
             print "The word %s %s in the dictionary." % (wrd, "is" if in_dict else "IS NOT")
+        elif splitted[0] == "define":
+            DictLookup(splitted[1].strip().lower())
         elif splitted[0] == "pause":
             print "Turn clock paused"
             clock.clock_stop()
         elif splitted[0] == "resume":
             print "Resuming turn clock"
             clock.clock_start()
+        elif splitted[0] == "accept":
+            #Hack to accept a current game board state
+            #used at least once to use this program for verification
+            #purposes in an already-started scrabble game
+            new_board = sv.get_current_board() 
+            game_board = new_board
+            continue
         elif splitted[0] == "":
             break
         else:
@@ -160,6 +170,18 @@ while True:
     words_with_scores = map(lambda x: (new_board.score_word(x, diffs),x), new_words) 
     words_with_scores.sort(reverse=True)
 
+    not_wrds = []
+    for (score, (wrd, pos, hz)) in words_with_scores:
+        if not twl.check(wrd):
+            print "WARN: \"%s\" not in dictionary." % wrd
+            not_wrds.append(wrd)
+    if len(not_wrds) > 0:
+        voice.say("beep")
+        voice.say("WARNING! The word%s %s %s not in the dictionary." % ("s" if len(not_wrds) > 1 else "", " and ".join(map(lambda x: "-- %s -- " % x, not_wrds)), "are" if len(not_wrds) > 1 else "is"))
+        cnt = ask("Do you wish to continue?")
+        if "n" in cnt:
+            continue
+
     total_score = 0
     strs = []
     for (score, (wrd, pos, hz)) in words_with_scores:
@@ -183,15 +205,6 @@ while True:
         voice.say("%s plays %s %s%s." % (cur_player, ", and ".join(strs), extra_str, ("for a total of %d points" % total_score) if len(strs) > 1 or extra_str != "" else ""))
 
     
-    not_wrds = []
-    for (score, (wrd, pos, hz)) in words_with_scores:
-        if not twl.check(wrd):
-            print "WARN: \"%s\" not in dictionary." % wrd
-            not_wrds.append(wrd)
-    if len(not_wrds) > 0:
-        voice.say("WARNING! The word%s %s %s not in the dictionary." % ("s" if len(not_wrds) > 1 else "", " and ".join(map(lambda x: "-- %s -- " % x, not_wrds)), "are" if len(not_wrds) > 1 else "is"))
-
-     
     rsp = ask("Commit changes? (enter \"no\" to retry, anything else to continue)").lower().strip()
     if "n" in rsp:
         print "Changes aborted. Please retry."
