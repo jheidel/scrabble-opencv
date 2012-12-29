@@ -1,5 +1,14 @@
 *.py[cod]
 
+#Swap files
+*~
+*.swp
+*.swo
+*.swn
+
+#Game state files
+*.state
+
 # C extensions
 *.so
 
