@@ -285,7 +285,7 @@ class ScrabbleVision(Thread):
 
     def run(self):
 
-            vc = cv2.VideoCapture(-1)
+            vc = cv2.VideoCapture(0)
 
             if vc.isOpened(): # try to get the first frame
                 rval, frame_raw = vc.read()
@@ -307,7 +307,8 @@ class ScrabbleVision(Thread):
 
                     
                     frame = cv2.flip(frame_raw, flipCode=-1)
-                    POST("RAW", frame)
+                    if configs.DEBUG:
+                        POST("RAW", frame)
 
                     luv = cv2.split(cv2.cvtColor(frame, cv2.COLOR_RGB2LUV))
 
@@ -325,7 +326,8 @@ class ScrabbleVision(Thread):
                     erode = cv2.erode(thresh, element)
                     erode = cv2.dilate(erode, element2)
                     
-                    POST("erode", erode)
+                    if configs.DEBUG:
+                        POST("erode", erode)
 
                     erode_draw = frame.copy()
                     
@@ -349,62 +351,6 @@ class ScrabbleVision(Thread):
                             possible_corners.append((x,y))
 
 
-                    """
-
-
-                    lines = cv2.HoughLinesP(erode, 1, 3.14/180, 300, minLineLength=200, maxLineGap=100)[0]
-                    m,n = erode.shape
-
-                    goodlines = lines[:40]
-
-                    #Calculate intersection points
-                    points = set()
-                    CLUSTER_RAD = 50
-                    clusters = []
-                    for x in goodlines:
-                        for y in goodlines:
-                            i = intersect(x,y)
-                            if i is not None:
-                                added = False
-                                for (ctr, st) in clusters:
-                                    if distance(i, ctr) < CLUSTER_RAD:
-                                        st.add(i)
-                                        added = True
-                                        break
-                                if not added:
-                                    clusters.append((i,set()))
-                    clustered_points = []
-                    for (_,c) in clusters:
-                        x = 0
-                        y = 0
-                        for p in c:
-                            x += p[0]
-                            y += p[1]
-                        clustered_points.append((len(c), (x / len(c), y / len(c))))
-                    clustered_points.sort(reverse=True)
-
-                    draw = frame.copy()
-                    for (x0,y0,x1,y1) in goodlines:
-                        cv2.line(draw, (x0,y0), (x1,y1), (255,0,0), 1) 
-
-                    if len(clustered_points) < 4:
-                        print "Corner points of board not detected"
-                        raise Exception
-
-                    #Draw corner points
-                    corners = []
-                    for (_,c) in clustered_points[:4]:
-                        cv2.circle(draw, c, 10, (0,255,0), thickness=3)
-                        corners.append(c)
-                       
-                    POST("draw", draw)
-                    
-                    img_corners = [(0,0), (640,0), (640,480), (0,480)]
-                    corners_sorted = [0,0,0,0]
-
-                    """
-
-
                     def get_closest_corner(point):
                         dst = float("inf")
                         crnr = None
@@ -413,7 +359,6 @@ class ScrabbleVision(Thread):
                             if d < dst:
                                 dst = d
                                 crnr = pc
-                        #print "Closest to %s is %d" % (str(point), dst)
                         if crnr is None:
                             if configs.DEBUG:
                                 print "Unable to find any corners"
@@ -455,7 +400,7 @@ class ScrabbleVision(Thread):
 
                     for cr in corners_sorted:
                         cv2.circle(erode_draw, (int(cr[0]), int(cr[1])), 15, (0,0,255), thickness=3)
-                    POST("erode_draw", erode_draw)
+                    POST("Scrabble Board", erode_draw)
 
                     #sort corners top left, top right, bottom right, bottom left
                     src = np.array(corners_sorted, np.float32)
@@ -536,7 +481,8 @@ class ScrabbleVision(Thread):
                                         new_info(i,j,None) #not a blank
 
                                     
-                        POST("letter draw", letter_draw)
+                        if configs.DEBUG:
+                            POST("letter draw", letter_draw)
 
 
                        
@@ -556,7 +502,7 @@ class ScrabbleVision(Thread):
                                     x += float(configs.SIZE-configs.LSTEP-configs.RSTEP) / 15
                                 y += float(configs.SIZE-configs.TSTEP-configs.BSTEP) / 15
 
-                        POST("AVG letter draw", avg_draw)
+                        POST("Letter Detection (Filtered)", avg_draw)
 
                 except IterSkip as e:
                     pass
