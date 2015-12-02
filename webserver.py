@@ -100,6 +100,9 @@ class ScrabbleServer(Thread):
 
     def run(self):
 
+        print 'WEB SERVER DISABLED'
+        return
+
         application = tornado.web.Application([
             (r"/(.*)", MainHandler),
 

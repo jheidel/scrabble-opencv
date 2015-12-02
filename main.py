@@ -1,30 +1,37 @@
 import os
-from vision import ScrabbleVision
-from scoreboard import Scoreboard
-from board import Board
-from speaker import Speaker
-import twl
-import signal, sys
-from scoring import *
 import pickle
-from scorebox import ScoreBox
-from gameclock import GameClock
+import signal
+import sys
+
+from scoreboard import Scoreboard
+from scoring import *
 import configs
-import webserver
 from dictionary import DictLookup
+
+import twl
+
+import board
+import gameclock
+import scorebox
+import source
+import speaker
+import vision
+import webserver
 
 def ask(s):
     return str(raw_input(str(s) + "\n> "))
 
+vision_source = source.FileSource()
+
 print "Starting scrabble vision..."
-sv = ScrabbleVision()
+sv = vision.ScrabbleVision(source=vision_source)
 sv.start()
 while not sv.started:
     pass
 print "Scrabble vision started. Ready."
 
 print "Starting speaker..."
-voice = Speaker()
+voice = speaker.Speaker()
 voice.start()
 
 PICKLE_FILENAME = "game.state"
@@ -42,21 +49,21 @@ else:
         x = ask("What is Player %d's name?"% i)    
         player_list.append(x.strip())
     
-    game_board = Board()
+    game_board = board.Board()
     scoreboard = Scoreboard(player_list)
 
     voice.say("Starting game!")
 
 
 #Create scorebox
-sbox = ScoreBox(scoreboard.player_list)
+sbox = scorebox.ScoreBox(scoreboard.player_list)
 sbox.start()
 sbox.set_letters(scoreboard.get_tiles_in_bag())
 sbox.set_rnd(scoreboard.turn_round)
 sbox.update_scores(scoreboard.points)
 
 #Game clock
-clock = GameClock(sbox)
+clock = gameclock.GameClock(sbox)
 clock.start()
 
 #STart up the webserver
@@ -135,7 +142,7 @@ while True:
     #Process board and differences
     new_board = sv.get_current_board() 
     new_board.merge(game_board)
-    diffs = Board.differences(game_board, new_board)
+    diffs = board.Board.differences(game_board, new_board)
 
     if not game_board.verify_diffs(diffs):
         #The letters played are invalid
@@ -163,7 +170,7 @@ while True:
         r = ask("Blank detected at position (%d,%d). What letter would you like to assign?" % (x,y))
         return str(r).strip().lower()
 
-    Board.blank_resolver(diffs, new_words, new_board, blank_prompt) 
+    board.Board.blank_resolver(diffs, new_words, new_board, blank_prompt) 
     #Blanks must be resolved at this point for the diffs and new_words' strings must be fixed
     #And new board must be updated 
     
