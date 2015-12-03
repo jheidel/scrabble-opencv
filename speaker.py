@@ -5,6 +5,7 @@ from time import sleep
 class Speaker(Thread):
     def __init__(self):
         Thread.__init__(self)
+        self.daemon = True
         self.q = []
         self.c = Condition()
         self.exit = False

@@ -40,26 +40,34 @@ class OpenCvIPCamera():
     """Start capturing images from the IP camera."""
     self.thread.start()
 
+    # Grab a test image. If that fails, dump out the buffer for debugging.
+    if self.read(timeout=5) is None:
+      print 'BUFFER DEBUG: %s' % self.imgbuf
+      print '** WARNING: failed to capture a test image from %s. **' % self.url
+
   def shut_down(self):
     """Shuts down image capture thread."""
     self.thread_cancelled = True
-    return self.thread.join(timeout=5000)
+    return self.thread.join(timeout=5)
 
-  def read(self):
+  def read(self, timeout=None):
     """Gets an image from the IP camera, blocking until one is available."""
-    return self.image_queue.get()
+    try:
+      return self.image_queue.get(block=True, timeout=timeout)
+    except queue.Empty:
+      return None
    
   def _run(self):
     # TODO(jheidel): Optimize buffering & marker finding
-    img_buffer = ''
+    self.imgbuf = ''
     while not self.thread_cancelled:
       try:
-        img_buffer += self.stream.raw.read(self.CHUNK_SIZE)
-        a = img_buffer.find('\xff\xd8')  # JPEG start marker
-        b = img_buffer.find('\xff\xd9')  # JPEG end marker
+        self.imgbuf += self.stream.raw.read(self.CHUNK_SIZE)
+        a = self.imgbuf.find('\xff\xd8')  # JPEG start marker
+        b = self.imgbuf.find('\xff\xd9')  # JPEG end marker
         if a != -1 and b != -1:
-          jpg_bytes = img_buffer[a:b+2]
-          img_buffer = img_buffer[b+2:]
+          jpg_bytes = self.imgbuf[a:b+2]
+          self.imgbuf = self.imgbuf[b+2:]
           img = cv2.imdecode(np.fromstring(jpg_bytes, dtype=np.uint8),
                              cv2.IMREAD_COLOR)
           try:

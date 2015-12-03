@@ -54,5 +54,5 @@ RELOAD = True
 
 VFLIP = False
 
-DEBUG = False
+DEBUG = True
 

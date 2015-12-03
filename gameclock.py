@@ -7,6 +7,7 @@ import os
 class GameClock(Thread):
     def __init__(self, scorebox):
         Thread.__init__(self)
+        self.daemon = True
         self.active = True
         self.l = Lock()
         self.win = scorebox

@@ -21,7 +21,8 @@ import webserver
 def ask(s):
     return str(raw_input(str(s) + "\n> "))
 
-vision_source = source.FileSource()
+#vision_source = source.FileSource()
+vision_source = source.IPSource()
 
 print "Starting scrabble vision..."
 sv = vision.ScrabbleVision(source=vision_source)

@@ -5,6 +5,7 @@ from threading import Thread, Lock
 class ScoreBox(Thread):
     def __init__(self, d):
         Thread.__init__(self)
+        self.daemon = True
         self.player_list = d
         self.strvars = {}
         self.letters_left = None

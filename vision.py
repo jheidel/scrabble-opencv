@@ -123,6 +123,22 @@ else:
   print "Model trained"
 
 
+def experimental_thresh_board(image):
+  image = cv2.resize(image, (128*15,128*15))
+  luv = cv2.split(cv2.cvtColor(image, cv2.COLOR_RGB2HSV))
+  l_chan = luv[2]
+
+  blur = cv2.GaussianBlur(l_chan, (configs.LETTER_BLUR,configs.LETTER_BLUR), 0)
+
+  thresh = cv2.adaptiveThreshold(blur, 255, 0, 1, configs.LETTER_THRESH, configs.LETTER_BLOCK)
+  
+  element = cv2.getStructuringElement(cv2.MORPH_CROSS, (7,7))
+  thresh = cv2.dilate(thresh, element)
+
+  thresh = cv2.resize(thresh, (128*5,128*5))
+
+  POST("experiment thresh letters", thresh)
+
 
 def classify_letter(image, x, y, draw=False, blank_board=None):
   image = cv2.resize(image, (128,128))
@@ -275,6 +291,7 @@ class IterSkip(Exception): #Using exceptions for loop control... so hacky...
 class ScrabbleVision(Thread):
   def __init__(self, source):
     Thread.__init__(self)
+    self.daemon = True
     self.source = source
 
     self.board = Board()
@@ -439,6 +456,8 @@ class ScrabbleVision(Thread):
           #POST("remapped", norm_draw)
 
           #end norm draw
+
+          experimental_thresh_board(norm)
            
           if configs.TRAIN:
             img = get_sub_image(norm, configs.COORD_X, configs.COORD_Y)
