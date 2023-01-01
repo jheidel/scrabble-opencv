@@ -8,6 +8,7 @@ import configs
 from threading import Thread, Lock
 from board import Board
 import traceback
+import importlib
 
 def POST(name, img):
   cv2.namedWindow(name)
@@ -32,7 +33,9 @@ def intersect(line1, line2):
 
   return int(x), int(y)
 
-def distance((x1,y1), (x2,y2)):
+def distance(p1, p2):
+  (x1,y1) = p1
+  (x2,y2) = p2
   return sqrt((x1-x2)**2 + (y1-y2)**2)
 
 
@@ -47,11 +50,6 @@ def get_sub_image(image, x, y):
       (int(dx + configs.PATCH_EXPAND), int(dy + configs.PATCH_EXPAND)),
       (int(xp + dx/2), int(yp + dy/2))) 
 
-
-
-responses = None
-samples = None
-model = None
 
 board_ar = [[] for x in range(0,15**2)]
 
@@ -72,8 +70,9 @@ def lookup_char(x,y):
       d[l] = 1
     else:
       d[l] = d[l] + 1
-  dd = zip(d.values(), d.keys())
-  dd.sort(reverse=True)
+
+  dd = list(zip(d.values(), d.keys()))
+  dd.sort(reverse=True, key=lambda x: x[0])
 
   if len(dd) == 0:
     return None
@@ -84,46 +83,191 @@ def lookup_char(x,y):
     ncf = float(nc) / len(a)
     if ncf != 1:
       if configs.DEBUG and x == configs.COORD_X and y == configs.COORD_Y:
-        print "nc IS %.2f" % ncf
+        print("nc IS %.2f" % ncf)
     if ncf > configs.BLANK_REQ_PERCENT:
       return None
     else:
       dd.remove(dd[0])
 
   return dd[0][1]
-  
 
 
-if configs.TRAIN:
-  print "Training mode!"
-  if not configs.RELOAD:
-    global samples, responses
-    responses = []
-    samples = np.empty((0,configs.TRAIN_SIZE**2))
-  else:
-    global samples, responses
-    samples = np.loadtxt('generalsamples.data',np.float32)
-    responses = np.loadtxt('generalresponses.data',np.float32)
-    responses = responses.reshape((responses.size,1))
-    responses = map(lambda x: x[0], list(responses))
-else:
-  global samples, responses, model
+class Model:
+  def __init__(self):
+    self.responses = None
+    self.samples = None
+    self.model = None
 
-  print "Loading trained data"
-  
-  samples = np.loadtxt('generalsamples.data',np.float32)
-  responses = np.loadtxt('generalresponses.data',np.float32)
-  responses = responses.reshape((responses.size,1))
+  def load(self):
+    if configs.TRAIN:
+      print("Training mode!")
+      if not configs.RELOAD:
+        self.responses = []
+        self.samples = np.empty((0,configs.TRAIN_SIZE**2))
+      else:
+        self.samples = np.loadtxt('generalsamples.data',np.float32)
+        self.responses = np.loadtxt('generalresponses.data',np.float32)
+        self.responses = self.responses.reshape((self.responses.size,1))
+        self.responses = map(lambda x: x[0], list(self.responses))
+    else:
+      print("Loading trained data")
+      
+      self.samples = np.loadtxt('generalsamples.data',np.float32)
+      self.responses = np.loadtxt('generalresponses.data',np.float32)
+      self.responses = self.responses.reshape((self.responses.size,1))
 
-  print "Training model"
+      print("Training model")
 
-  model = cv2.KNearest()
-  model.train(samples,responses)
+      self.model = cv2.ml.KNearest_create()
+      self.model.train(self.samples, cv2.ml.ROW_SAMPLE, self.responses)
 
-  print "Model trained"
+      print("Model trained")
+
+  def classify_letter(self, image, x, y, draw=False, blank_board=None):
+    image = cv2.resize(image, (128,128))
+    if draw:
+      POST("letter start", image)
+
+    luv = cv2.split(cv2.cvtColor(image, cv2.COLOR_RGB2HSV))
+    l_chan = luv[2]
+
+    #-----
+    shift = configs.BLANK_PATCH_BL_SHIFT
+
+    gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    gray =  cv2.getRectSubPix(
+        gray,
+        (configs.BLANK_DETECT_SIZE,configs.BLANK_DETECT_SIZE),
+        (64-shift,64+shift)) 
+    gray = cv2.GaussianBlur(gray, (3,3), 0)
+
+    mean, stddev = cv2.meanStdDev(gray)
+    norm_mean = stddev / mean * 100
+    
+    if draw:
+      POST("OC", gray)
+      print("Mean is %.2f and stddev is %.2f; experimental norm mean is %.2f" % (mean, stddev, norm_mean))
+
+    if norm_mean < configs.STD_DEV_THRESH:
+      #square is blank!
+      if draw:
+        print("Dropped due to blank")
+      if blank_board is not None:
+        blank_board.set(x, y, mean)
+      return None
+
+    #-----
+
+    if draw:
+      POST("letter L", l_chan)
+
+    blur = cv2.GaussianBlur(l_chan, (configs.LETTER_BLUR,configs.LETTER_BLUR), 0)
+
+    thresh = cv2.adaptiveThreshold(blur, 255, 0, 1, configs.LETTER_THRESH, configs.LETTER_BLOCK)
+    
+    element = cv2.getStructuringElement(cv2.MORPH_CROSS, (7,7))
+    thresh = cv2.dilate(thresh, element)
+
+    if draw:
+      POST("letter thresh", thresh)
+    othresh = thresh.copy()
+
+    contours,hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    im = image.copy()
+
+    #Find large contour closest to center of image
+    minc = None
+    mindst = float("inf")
+    for cnt in contours:
+      sz = cv2.contourArea(cnt)
+      if sz>820:
+        [x,y,w,h] = cv2.boundingRect(cnt)
+        d = abs(cv2.pointPolygonTest(cnt, (64,64), measureDist=True))
+        cv2.circle(im, (64,64), 2, (0,255,0), thickness=3)
+
+        if d < mindst:
+          mindst = d
+          minc = cnt
+
+    if mindst > 50:
+      if draw:
+        print("Dropped due to contour distance")
+      return None
+
+    if minc is None:
+      if draw:
+        print("Dropped due to no contours")
+      return None
+        
+    [x,y,w,h] = cv2.boundingRect(minc)
+    cv2.rectangle(im,(x,y),(x+w,y+h),(0,255,0),1)
+    if draw:
+      POST("letter contour", im)
+    
+    #Detect triple word stuffs
+    if w > h*configs.TEXT_RATIO:
+      if draw:
+        print("Dropped due to insufficient ratio")
+      return None
+
+
+    if w*h >= 128**2 * configs.MAX_FILL:
+      if draw:
+        print("Too much fill")
+      return None
+
+
+    #TODO: I is weird
+    if float(h)/float(w) > 2.0:
+      nw = int(h*0.7)
+    else:
+      nw = w
+
+    trimmed = cv2.getRectSubPix(othresh, (nw,h), (int(x + float(w)/2), int(y + float(h)/2))) 
+
+    trimmed = cv2.resize(trimmed, (configs.TRAIN_SIZE, configs.TRAIN_SIZE))
+    
+    if draw:
+      POST("Trimmed letter", trimmed)
+    
+    sample = trimmed.reshape((1,configs.TRAIN_SIZE**2))
+
+    if configs.TRAIN:
+      print("What letter is this? (enter to stop, esc to skip)")
+      o = cv2.waitKey(0)
+      if o == 10:
+        self.responses = np.array(self.responses,np.float32)
+        self.responses = self.responses.reshape((self.responses.size,1))
+        print("training complete")
+
+        np.savetxt('generalsamples.data',self.samples)
+        np.savetxt('generalresponses.data',self.responses)
+        sys.exit(0)
+      elif o == 27:
+        print("Skipping, here's another...")
+      else:
+        x = chr(o).lower()
+        print("You said it's a %s" % str(x))
+        self.responses.append(ord(x)-96)
+        self.samples = np.append(self.samples, sample, 0)
+        print("Added to sample set")
+    else:
+
+      #classify!
+      sample = np.float32(sample)
+      retval, results, neigh_resp, dists = self.model.findNearest(sample, k = 1)
+      retchar = chr(int((results[0][0])) + 96)
+      if retchar == '0':
+        #Star character!
+        if draw:
+          print("Dropped due to star")
+        return None
+      return retchar
 
 
 def experimental_thresh_board(image):
+
   image = cv2.resize(image, (128*15,128*15))
   luv = cv2.split(cv2.cvtColor(image, cv2.COLOR_RGB2HSV))
   l_chan = luv[2]
@@ -140,148 +284,6 @@ def experimental_thresh_board(image):
   POST("experiment thresh letters", thresh)
 
 
-def classify_letter(image, x, y, draw=False, blank_board=None):
-  image = cv2.resize(image, (128,128))
-  if draw:
-    POST("letter start", image)
-
-  luv = cv2.split(cv2.cvtColor(image, cv2.COLOR_RGB2HSV))
-  l_chan = luv[2]
-
-  #-----
-  shift = configs.BLANK_PATCH_BL_SHIFT
-
-  gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-  gray =  cv2.getRectSubPix(
-      gray,
-      (configs.BLANK_DETECT_SIZE,configs.BLANK_DETECT_SIZE),
-      (64-shift,64+shift)) 
-  gray = cv2.GaussianBlur(gray, (3,3), 0)
-
-  mean, stddev = cv2.meanStdDev(gray)
-  norm_mean = stddev / mean * 100
-  
-  if draw:
-    POST("OC", gray)
-    print "Mean is %.2f and stddev is %.2f; experimental norm mean is %.2f" % (mean, stddev, norm_mean)
-
-  if norm_mean < configs.STD_DEV_THRESH:
-    #square is blank!
-    if draw:
-      print "Dropped due to blank"
-    if blank_board is not None:
-      blank_board.set(x, y, mean)
-    return None
-
-  #-----
-
-  if draw:
-    POST("letter L", l_chan)
-
-  blur = cv2.GaussianBlur(l_chan, (configs.LETTER_BLUR,configs.LETTER_BLUR), 0)
-
-  thresh = cv2.adaptiveThreshold(blur, 255, 0, 1, configs.LETTER_THRESH, configs.LETTER_BLOCK)
-  
-  element = cv2.getStructuringElement(cv2.MORPH_CROSS, (7,7))
-  thresh = cv2.dilate(thresh, element)
-
-  if draw:
-    POST("letter thresh", thresh)
-  othresh = thresh.copy()
-
-  contours,hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-  im = image.copy()
-
-  #Find large contour closest to center of image
-  minc = None
-  mindst = float("inf")
-  for cnt in contours:
-    sz = cv2.contourArea(cnt)
-    if sz>820:
-      [x,y,w,h] = cv2.boundingRect(cnt)
-      d = abs(cv2.pointPolygonTest(cnt, (64,64), measureDist=True))
-      cv2.circle(im, (64,64), 2, (0,255,0), thickness=3)
-
-      if d < mindst:
-        mindst = d
-        minc = cnt
-
-  if mindst > 50:
-    if draw:
-      print "Dropped due to contour distance"
-    return None
-
-  if minc is None:
-    if draw:
-      print "Dropped due to no contours"
-    return None
-      
-  [x,y,w,h] = cv2.boundingRect(minc)
-  cv2.rectangle(im,(x,y),(x+w,y+h),(0,255,0),1)
-  if draw:
-    POST("letter contour", im)
-  
-  #Detect triple word stuffs
-  if w > h*configs.TEXT_RATIO:
-    if draw:
-      print "Dropped due to insufficient ratio"
-    return None
-
-
-  if w*h >= 128**2 * configs.MAX_FILL:
-    if draw:
-      print "Too much fill"
-    return None
-
-
-  #TODO: I is weird
-  if float(h)/float(w) > 2.0:
-    nw = int(h*0.7)
-  else:
-    nw = w
-
-  trimmed = cv2.getRectSubPix(othresh, (nw,h), (int(x + float(w)/2), int(y + float(h)/2))) 
-
-  trimmed = cv2.resize(trimmed, (configs.TRAIN_SIZE, configs.TRAIN_SIZE))
-  
-  if draw:
-    POST("Trimmed letter", trimmed)
-  
-  sample = trimmed.reshape((1,configs.TRAIN_SIZE**2))
-
-  if configs.TRAIN:
-    global samples, responses
-    print "What letter is this? (enter to stop, esc to skip)"
-    o = cv2.waitKey(0)
-    if o == 10:
-      responses = np.array(responses,np.float32)
-      responses = responses.reshape((responses.size,1))
-      print "training complete"
-
-      np.savetxt('generalsamples.data',samples)
-      np.savetxt('generalresponses.data',responses)
-      sys.exit(0)
-    elif o == 27:
-      print "Skipping, here's another..."
-    else:
-      x = chr(o).lower()
-      print "You said it's a %s" % str(x)
-      responses.append(ord(x)-96)
-      samples = np.append(samples, sample, 0)
-      print "Added to sample set"
-  else:
-
-    #classify!
-    sample = np.float32(sample)
-    retval, results, neigh_resp, dists = model.find_nearest(sample, k = 1)
-    retchar = chr(int((results[0][0])) + 96)
-    if retchar == '0':
-      #Star character!
-      if draw:
-        print "Dropped due to star"
-      return None
-    return retchar
 
 class IterSkip(Exception): #Using exceptions for loop control... so hacky...
   def __init__(self):
@@ -298,6 +300,7 @@ class ScrabbleVision(Thread):
     self.l = Lock()
     self.started = False
     self.killed = False
+    self.model = Model()
 
   def get_current_board(self):
     with self.l:
@@ -308,20 +311,21 @@ class ScrabbleVision(Thread):
 
   def run(self):
 
+      self.model.load()
       self.source.start()
 
       while True:
 
         frame_raw = self.source.read()
         if frame_raw is None:
-          print 'No frame received; terminating.'
+          print('No frame received; terminating.')
           return
 
         if self.killed:
-          print "Vision terminating"
+          print("Vision terminating")
           return
 
-        reload(configs)
+        importlib.reload(configs)
         element = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (configs.ERODE_RAD,configs.ERODE_RAD))
         element2 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (configs.DILATE_RAD,configs.DILATE_RAD))
 
@@ -364,22 +368,6 @@ class ScrabbleVision(Thread):
 
           possible_corners = []
 
-          #Find large contour closest to center of image
-          for cnt in contours:
-            sz = cv2.contourArea(cnt)
-            if sz>75 and sz < 650:
-              ellipse = cv2.fitEllipse(cnt)
-              ((x,y), (w,h), r) = ellipse
-              ar = w / h if w > h else h / w
-              if ar > 1.8:
-                continue
-              pf = (w * h * 0.75) / sz
-              if pf > 1.5:
-                continue
-              cv2.ellipse(erode_draw,ellipse,(0,255,0),2)
-              possible_corners.append((x,y))
-
-
           def get_closest_corner(point):
             dst = float("inf")
             crnr = None
@@ -390,33 +378,86 @@ class ScrabbleVision(Thread):
                 crnr = pc
             if crnr is None:
               if configs.DEBUG:
-                print "Unable to find any corners"
+                print("Unable to find any corners")
               raise IterSkip()
             return crnr
 
+          corners_sorted = []
+
           img_height, img_width, _ = frame_raw.shape
 
-          tl = get_closest_corner((0,0))
-          br = get_closest_corner((img_width, img_height))
-          tl = (tl[0] + configs.TL_X, tl[1] + configs.TL_Y)
-          br = (br[0] + configs.BR_X, br[1] + configs.BR_Y)
-          tr = get_closest_corner((img_width, 0))
-          bl = get_closest_corner((0, img_height))
+          if configs.BOARD_MODE_RED_CIRCLES:
+            #Find large contour closest to center of image
+            for cnt in contours:
+              sz = cv2.contourArea(cnt)
+              if sz>75 and sz < 650:
+                ellipse = cv2.fitEllipse(cnt)
+                ((x,y), (w,h), r) = ellipse
+                ar = w / h if w > h else h / w
+                if ar > 1.8:
+                  continue
+                pf = (w * h * 0.75) / sz
+                if pf > 1.5:
+                  continue
+                cv2.ellipse(erode_draw,ellipse,(0,255,0),2)
+                possible_corners.append((x,y))
 
-          #Check lengths to ensure valid board layout
-          top_len = distance(tl, tr)
-          left_len = distance(tl, bl)
-          bottom_len = distance(bl, br)
-          right_len = distance(tr, br)
-          sides = np.array([top_len, left_len, bottom_len, right_len])
+            tl = get_closest_corner((0,0))
+            br = get_closest_corner((img_width, img_height))
+            tl = (tl[0] + configs.TL_X, tl[1] + configs.TL_Y)
+            br = (br[0] + configs.BR_X, br[1] + configs.BR_Y)
+            tr = get_closest_corner((img_width, 0))
+            bl = get_closest_corner((0, img_height))
 
-          side_dev = float(sides.std()) / sides.mean()
-          if side_dev > configs.SIDE_DEV_THRESH:
+            #Check lengths to ensure valid board layout
+            top_len = distance(tl, tr)
+            left_len = distance(tl, bl)
+            bottom_len = distance(bl, br)
+            right_len = distance(tr, br)
+            sides = np.array([top_len, left_len, bottom_len, right_len])
+
+            side_dev = float(sides.std()) / sides.mean()
+            if side_dev > configs.SIDE_DEV_THRESH:
+              if configs.DEBUG:
+                print("Invalid board corners detected! (std of %.2f)" % side_dev)
+              raise IterSkip()
+
+            corners_sorted = [tl, tr, br, bl]
+
+          if configs.BOARD_MODE_RED_BORDER:
+            cdebug = erode_draw.copy()
+            cv2.drawContours(cdebug, contours, -1, (0, 255, 0), 1)
+
+            for cnt in contours:
+              hull = cv2.convexHull(cnt)
+              area = cv2.contourArea(hull)
+              if area < 100 * 100:
+                continue
+
+              cv2.drawContours(cdebug, [hull], -1, (255, 0, 0), 1)
+
+              perimeter = cv2.arcLength(hull, True)
+              approx = cv2.approxPolyDP(hull, perimeter * 0.02, True)
+
+              cv2.drawContours(cdebug, [approx], -1, (0, 0, 255), 1)
+
+              possible_corners = [p[0] for p in approx]
+              tl = get_closest_corner((0,0))
+              br = get_closest_corner((img_width, img_height))
+              tl = (tl[0] + configs.TL_X, tl[1] + configs.TL_Y)
+              br = (br[0] + configs.BR_X, br[1] + configs.BR_Y)
+              tr = get_closest_corner((img_width, 0))
+              bl = get_closest_corner((0, img_height))
+
+              corners_sorted = [tl, tr, br, bl]
+
             if configs.DEBUG:
-              print "Invalid board corners detected! (std of %.2f)" % side_dev
-            raise IterSkip()
+              POST("red_border_debug", cdebug)
 
-          corners_sorted = [tl, tr, br, bl]
+          if len(corners_sorted) < 4:
+            if configs.DEBUG:
+              print("Missing corners")
+            raise IterSkip()
 
           for cr in corners_sorted:
             cv2.circle(erode_draw, (int(cr[0]), int(cr[1])), 15, (0, 0, 255), thickness=3)
@@ -431,7 +472,6 @@ class ScrabbleVision(Thread):
           norm = cv2.warpPerspective(frame, M, (configs.SIZE,configs.SIZE))
 
           line_color = (0,0,255)
-
 
           #start norm draw
 
@@ -453,15 +493,16 @@ class ScrabbleVision(Thread):
             y += float(configs.SIZE-configs.TSTEP-configs.BSTEP) / 15
             cv2.line(norm_draw, (configs.LSTEP,int(y)), (configs.SIZE-configs.RSTEP,int(y)), line_color)
 
-          #POST("remapped", norm_draw)
+          if configs.DEBUG:
+            POST("remapped", norm_draw)
 
           #end norm draw
 
-          experimental_thresh_board(norm)
+          #experimental_thresh_board(norm)
            
           if configs.TRAIN:
             img = get_sub_image(norm, configs.COORD_X, configs.COORD_Y)
-            classify_letter(img, configs.COORD_X, configs.COORD_Y, draw=True)
+            self.model.classify_letter(img, configs.COORD_X, configs.COORD_Y, draw=True)
           else:
 
             blank_b = Board()
@@ -473,7 +514,7 @@ class ScrabbleVision(Thread):
               x = configs.LSTEP
               for i in range(0,15):
                 img = get_sub_image(norm, i,j)
-                r = classify_letter(img, i, j, draw=(configs.DEBUG and i == configs.COORD_X and j == configs.COORD_Y), blank_board=blank_b)
+                r = self.model.classify_letter(img, i, j, draw=(configs.DEBUG and i == configs.COORD_X and j == configs.COORD_Y), blank_board=blank_b)
                 in_blank = (blank_b.get(i,j) is not None)
                 if not in_blank:
                   new_info(i,j,r)
@@ -495,7 +536,7 @@ class ScrabbleVision(Thread):
                   z = abs(r - mean) / std
 
                   if configs.DEBUG and i == configs.COORD_X and j == configs.COORD_Y:
-                    print "Color is %d; mean of nearest %d neighbors is %.2f, std is %.2f, z is %.2f" % (r, configs.BLANK_NEIGHBORS, mean, std, z) 
+                    print("Color is %d; mean of nearest %d neighbors is %.2f, std is %.2f, z is %.2f" % (r, configs.BLANK_NEIGHBORS, mean, std, z) )
                   if z > configs.BLANK_Z_THRESH:
                     #This is a blank!
                     new_info(i,j,'-')
@@ -526,10 +567,10 @@ class ScrabbleVision(Thread):
         except IterSkip as e:
           pass
         except Exception as e:
-          print "Exception occured: %s" % str(e)
-          print "--------"
-          print traceback.format_exc()
-          print "--------"
+          print("Exception occured: %s" % str(e))
+          print("--------")
+          print(traceback.format_exc())
+          print("--------")
 
         #END PROCESSING
 
@@ -541,5 +582,5 @@ class ScrabbleVision(Thread):
 
         #rval, frame_raw = vc.read()
 
-      print "Terminating..."
+      print("Terminating...")
 

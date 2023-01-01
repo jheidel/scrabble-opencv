@@ -73,9 +73,9 @@ class Board:
 
     #Takes a set of diffs and makes sure they're a valid move (i.e all letters in a single line)
     def verify_diffs(self, diffs):
-        points = map(lambda (a,b,c): (a,b), diffs)
-        x_p = map(lambda (a,b): a, points)
-        y_p = map(lambda (a,b): b, points)
+        points = list(map(lambda p: (p[0],p[1]), diffs))
+        x_p = list(map(lambda p: p[0], points))
+        y_p = list(map(lambda p: p[1], points))
 
         if len(diffs) == 0:
             #Skip trun
@@ -83,10 +83,10 @@ class Board:
 
         if len(set(x_p)) == 1: #All elements are lined up vertically
             o_p = y_p
-            from_board = map(lambda (c,d): c, filter(lambda (a,b): b is not None, [(y, self.get(x_p[0], y)) for y in range(0,Board.SIZE)]))
+            from_board = map(lambda m: m[0], filter(lambda p: p[1] is not None, [(y, self.get(x_p[0], y)) for y in range(0,Board.SIZE)]))
         elif len(set(y_p)) == 1: #All elements are lined up horizontally
             o_p = x_p
-            from_board = map(lambda (c,d): c, filter(lambda (a,b): b is not None, [(x, self.get(x, y_p[0])) for x in range(0,Board.SIZE)]))
+            from_board = map(lambda m: m[0], filter(lambda p: p[1] is not None, [(x, self.get(x, y_p[0])) for x in range(0,Board.SIZE)]))
         else:
             #Elements are not all in one line
             return False
@@ -95,8 +95,8 @@ class Board:
         o_p.sort()
       
         #Get anything on the board between the min and max letters we placed
-        board_relevant = filter(lambda x: x > o_p[0] and x < o_p[-1], from_board)
-        print "Board relevant: " + str(board_relevant)
+        board_relevant = list(filter(lambda x: x > o_p[0] and x < o_p[-1], from_board))
+        print("Board relevant: " + str(board_relevant))
         
         #get row from board
         o_p += board_relevant
@@ -104,14 +104,14 @@ class Board:
 
         #Make sure all values are continuous
         paired = zip(o_p, o_p[1:])
-        continuous_values = all(map(lambda (a,b): b == a+1, paired))
+        continuous_values = all(map(lambda p: p[1] == p[0]+1, paired))
 
         if not continuous_values:
             return False
 
         #Verify that at least one letter is next to an existing letter (unless board is empty)
-        def next_to_existing_letter((i,j)):
-            return (self.get(i+1,j) is not None) or (self.get(i-1, j) is not None) or (self.get(i, j-1) is not None) or (self.get(i, j+1) is not None)
+        def next_to_existing_letter(p):
+            return (self.get(p[0]+1,p[1]) is not None) or (self.get(p[0]-1, p[1]) is not None) or (self.get(p[0], p[1]-1) is not None) or (self.get(p[0], p[1]+1) is not None)
 
         def board_is_empty():
             return all(map(lambda x: x is None, self.board))
@@ -202,11 +202,11 @@ class Board:
             if all(map(twl.check, new_words)):
                 possible_letters.append(l) #All new words pass dictionary check
 
-        print "Possible letters for blank: %s" % str(possible_letters)
+        print("Possible letters for blank: %s" % str(possible_letters))
 
         if len(possible_letters) == 1:
             l = possible_letters[0]
-            print "Auto resolving blank to %s" % l
+            print("Auto resolving blank to %s" % l)
             diffs.remove((x,y,'-'))
             blnk = Blank(l)
             diffs.append((x,y,blnk))
@@ -238,7 +238,8 @@ class Board:
                 word_set.add(new_word)
 
     #Scores a word given the new board and the list of diffs
-    def score_word(self, (word, word_start, horizontal), diffs):
+    def score_word(self, t, diffs):
+        (word, word_start, horizontal) = t
 
         def is_new(x,y):
             for (i,j,c) in diffs:

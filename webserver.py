@@ -1,25 +1,23 @@
-import tornado.httpserver
-import tornado.ioloop
+import asyncio
 import tornado.web
 import webbrowser
 from threading import Thread
+import urllib
 from scoring import *
-import cgi
 import twl
 import os
 
-PORT = 80
+PORT = 8080
 
 #This global state is bad practice; TODO: Fix
-global global_scoreboard
-global global_board
-global handle_count
+global_scoreboard = None
+global_board = None
 handle_count = 0
 
 class MainHandler(tornado.web.RequestHandler):  
 
     def post(self, val):
-        params = dict(cgi.parse_qsl(self.request.body))
+        params = dict(urllib.parse.parse_qsl(self.request.body.decode('utf-8')))
         addr = self.request.remote_ip
         global handle_count
         global global_scoreboard, global_board #TODO: Fix
@@ -86,34 +84,33 @@ class MainHandler(tornado.web.RequestHandler):
 class ScrabbleServer(Thread):
     def __init__(self, game_board, scoreboard):
         Thread.__init__(self)
-        self.io_loop = None
         global global_scoreboard, global_board #TODO: Fix
         global_scoreboard = scoreboard
         global_board = game_board
 
     def kill(self):
-        self.io_loop.stop()
+      pass
 
     def refresh(self):
         global handle_count
         handle_count += 1
 
     def run(self):
-
-        print 'WEB SERVER DISABLED'
-        return
-
-        application = tornado.web.Application([
-            (r"/(.*)", MainHandler),
-
-        ])
+        async def serve_http():
+          application = tornado.web.Application([
+              (r"/(.*)", MainHandler),
+          ])
+          application.listen(PORT)
+          shutdown_event = asyncio.Event()
+          await shutdown_event.wait()
 
         #start server
-        print "Starting Scrabble Server"
-        http_server = tornado.httpserver.HTTPServer(application)
-        http_server.listen(PORT)
-        self.io_loop = tornado.ioloop.IOLoop.instance()
+        print("Starting Scrabble Server")
+        #http_server = tornado.httpserver.HTTPServer(application)
+        #http_server.listen(PORT)
+        #self.io_loop = tornado.ioloop.IOLoop.instance()
+        asyncio.run(serve_http())
 
-        self.io_loop.start()
-        print "Scrabble server stopped"
+        #self.io_loop.start()
+        print("Scrabble server stopped")
        

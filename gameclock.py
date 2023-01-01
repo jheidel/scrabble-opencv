@@ -51,8 +51,8 @@ class GameClock(Thread):
         cdt = self._get_delta()
         tot_secs = int(cdt.total_seconds())
         ms = cdt.microseconds / 1e3
-        mins = tot_secs / 60
-        secs = tot_secs - mins * 60
+        mins = int(tot_secs / 60)
+        secs = tot_secs - (mins * 60)
         self.win.set_clock_text("%02d:%02d" % (mins, secs), "%03d" % ms)
 
         if self.alarm_thresh is not None and tot_secs >= self.alarm_thresh:

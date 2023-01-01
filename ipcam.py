@@ -8,7 +8,7 @@ import numpy as np
 import time
 import threading
 import requests
-import Queue as queue
+import queue
 
 
 class OpenCvIPCamera():
@@ -42,8 +42,8 @@ class OpenCvIPCamera():
 
     # Grab a test image. If that fails, dump out the buffer for debugging.
     if self.read(timeout=5) is None:
-      print 'BUFFER DEBUG: %s' % self.imgbuf
-      print '** WARNING: failed to capture a test image from %s. **' % self.url
+      print('BUFFER DEBUG: %s' % self.imgbuf)
+      print('** WARNING: failed to capture a test image from %s. **' % self.url)
 
   def shut_down(self):
     """Shuts down image capture thread."""

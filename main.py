@@ -17,21 +17,26 @@ import source
 import speaker
 import vision
 import webserver
+import importlib
+
 
 def ask(s):
-    return str(raw_input(str(s) + "\n> "))
+    return str(input(str(s) + "\n> "))
 
+
+# TODO: make source configurable
 #vision_source = source.FileSource()
-vision_source = source.IPSource()
+#vision_source = source.IPSource()
+vision_source = source.CvSource()
 
-print "Starting scrabble vision..."
+print("Starting scrabble vision...")
 sv = vision.ScrabbleVision(source=vision_source)
 sv.start()
 while not sv.started:
     pass
-print "Scrabble vision started. Ready."
+print("Scrabble vision started. Ready.")
 
-print "Starting speaker..."
+print("Starting speaker...")
 voice = speaker.Speaker()
 voice.start()
 
@@ -40,7 +45,7 @@ PICKLE_FILENAME = "game.state"
 if len(sys.argv) == 2:
     filename = sys.argv[1] 
     (scoreboard, game_board) = pickle.load( open(filename, "rb") )
-    print "Game recovered from file"
+    print("Game recovered from file")
     voice.say("Resuming game!")
 else:
     #Find out our players
@@ -73,7 +78,7 @@ serve.start()
 
 #Register interrupt handler
 def signal_handler(signal, frame):
-    print "\nProgram terminating!"
+    print("\nProgram terminating!")
     voice.kill()
     sv.kill()
     sbox.kill()
@@ -90,19 +95,19 @@ no_letters_warned = False
 last_skip = dict(map(lambda x: (x,False), scoreboard.player_list))
 
 while True:
-    reload(configs)
+    importlib.reload(configs)
     clock.warn_thresh = int(configs.WARN_TIME * 60) if configs.WARN_TIME > 0 else None
     clock.alarm_thresh = int(configs.ALARM_TIME * 60) if configs.ALARM_TIME > 0 else None
 
     cur_player = scoreboard.get_player_turn()
 
-    print "====== SCORES ======"
+    print("====== SCORES ======")
     scores = scoreboard.get_scores()
     for player, points in scores:
-        print "%s: %d points" % (player, points)
-    print "===================="
+        print("%s: %d points" % (player, points))
+    print("====================")
 
-    print "-- Begin %s's turn --" % cur_player 
+    print("-- Begin %s's turn --" % cur_player )
     voice.say("%s's turn!" % cur_player)
     sbox.highlight(cur_player)
     
@@ -112,19 +117,19 @@ while True:
     
     while True:
         rsp = ask("Push enter to register move").lower().strip()
-        splitted = map(lambda x: x.lower().strip(), rsp.split(' '))
+        splitted = list(map(lambda x: x.lower().strip(), rsp.split(' ')))
 
         if splitted[0] == "check" or splitted[0] == "lookup":
             wrd = splitted[1]
             in_dict = twl.check(wrd)
-            print "The word %s %s in the dictionary." % (wrd, "is" if in_dict else "IS NOT")
+            print("The word %s %s in the dictionary." % (wrd, "is" if in_dict else "IS NOT"))
         elif splitted[0] == "define":
             DictLookup(splitted[1].strip().lower())
         elif splitted[0] == "pause":
-            print "Turn clock paused"
+            print("Turn clock paused")
             clock.clock_stop()
         elif splitted[0] == "resume":
-            print "Resuming turn clock"
+            print("Resuming turn clock")
             clock.clock_start()
         elif splitted[0] == "accept":
             #Hack to accept a current game board state
@@ -136,7 +141,7 @@ while True:
         elif splitted[0] == "":
             break
         else:
-            print "Command not recognized."
+            print("Command not recognized.")
 
     clock.clock_stop()
 
@@ -147,11 +152,11 @@ while True:
 
     if not game_board.verify_diffs(diffs):
         #The letters played are invalid
-        print "!! Invalid set of letters played. The given letters are not a single, valid"
-        print "word. Please check the camera view to make sure all letters are being detected"
-        print "properly and that there are no stray letters being picked up."
-        print "For reference: the following diffs were detected:"
-        print str(diffs)
+        print("!!(Invalid set of letters played. The given letters are not a single, valid")
+        print("word. Please check the camera view to make sure all letters are being detected")
+        print("properly and that there are no stray letters being picked up.")
+        print("For reference: the following diffs were detected:")
+        print(str(diffs))
         voice.say("Error. Invalid move. Check vision.")
         continue
 
@@ -175,13 +180,13 @@ while True:
     #Blanks must be resolved at this point for the diffs and new_words' strings must be fixed
     #And new board must be updated 
     
-    words_with_scores = map(lambda x: (new_board.score_word(x, diffs),x), new_words) 
+    words_with_scores = list(map(lambda x: (new_board.score_word(x, diffs),x), new_words))
     words_with_scores.sort(reverse=True)
 
     not_wrds = []
     for (score, (wrd, pos, hz)) in words_with_scores:
         if not twl.check(wrd):
-            print "WARN: \"%s\" not in dictionary." % wrd
+            print("WARN: \"%s\" not in dictionary." % wrd)
             not_wrds.append(wrd)
     if len(not_wrds) > 0:
         voice.say("beep")
@@ -193,17 +198,17 @@ while True:
     total_score = 0
     strs = []
     for (score, (wrd, pos, hz)) in words_with_scores:
-        print "New word: %s -- %d points" % (wrd, score)
+        print("New word: %s -- %d points" % (wrd, score))
         strs.append("-- %s -- for %d point%s" % (wrd, score, "s" if score > 1 else ""))
         total_score += score
 
     extra_str = ""
     if len(diffs) >= 7:
-        print "All letter bonus: +50 points"
+        print("All letter bonus: +50 points")
         extra_str = ", and used all letters for 50 more points, "
         total_score += 50
 
-    print "==Total score for turn: %d points" % total_score
+    print("==Total score for turn: %d points" % total_score)
 
     if total_score == 0:
         voice.say("%s skips turn." % cur_player)
@@ -215,7 +220,7 @@ while True:
     
     rsp = ask("Commit changes? (enter \"no\" to retry, anything else to continue)").lower().strip()
     if "n" in rsp:
-        print "Changes aborted. Please retry."
+        print("Changes aborted. Please retry.")
         voice.say("Turn has been undone.")
     else:
         #Save changes to game state
@@ -226,12 +231,12 @@ while True:
         clock.clock_reset()
         if tiles_left == 0:
             #Game over!
-            print "Game finished! %s is out of letters!" % cur_player
+            print("Game finished! %s is out of letters!" % cur_player)
             player_out = cur_player
             voice.say("%s is out of letters. The game is over." % cur_player)
             finished = True
         elif all(last_skip.values()) and scoreboard.get_tiles_in_bag() == 0: #All players have skipped @ end of game
-            print "All players have skipped. Game is over."
+            print("All players have skipped. Game is over.")
             voice.say("All players have skipped their turns. The game is over.")
             finished = True
         elif round_completed:
@@ -243,10 +248,10 @@ while True:
             #voice.say("There are %d letters left in the bag." % scoreboard.get_tiles_in_bag())
         if scoreboard.get_tiles_in_bag() == 0 and (not no_letters_warned):
             no_letters_warned = True
-            print "No more letters!"
+            print("No more letters!")
             voice.say("There are no more letters in the bag.")
 
-        print "Letters remaining in bag: %d" % scoreboard.get_tiles_in_bag()
+        print("Letters remaining in bag: %d" % scoreboard.get_tiles_in_bag())
         sbox.update_scores(scoreboard.points)              
         sbox.set_rnd(scoreboard.turn_round)
         sbox.set_letters(scoreboard.get_tiles_in_bag())
@@ -270,13 +275,13 @@ if not all(last_skip.values()): #Game didn't end due to all-skip condition
             query = ("Which %s does %s have left?" % (("%d letters" % letter_count) if letter_count > 1 else "letter",p))
             voice.say(query)
             r = ask("%s (input as a list separated by commas)" % query)
-            letters = map(lambda x: x.strip().lower(), r.split(','))
+            letters = list(map(lambda x: x.strip().lower(), r.split(',')))
             total_points = sum(map(get_letter_points, letters))
             
             #Give these points to the player who went out
             scoreboard.add_adjustment(p, -1 * total_points)
             scoreboard.add_adjustment(player_out, total_points)
-            print "%d points transferred from %s to %s" % (total_points, p, player_out)
+            print("%d points transferred from %s to %s" % (total_points, p, player_out))
             voice.say("%s get %d points from %s." % (player_out, total_points, p))
             sbox.update_scores(scoreboard.points)              
 
@@ -286,17 +291,17 @@ winner, winning_score = final_scores[0]
 sbox.highlight(winner)
 serve.refresh()
 
-print "-------------------"
+print("-------------------")
 
-print "== %s Wins! ==" % winner
-print "%s has %d points" % (winner, winning_score)
+print("== %s Wins! ==" % winner)
+print("%s has %d points" % (winner, winning_score))
 voice.say("%s is the winner with a final score of %d points." % (winner, winning_score))
 
 for player, points in final_scores[1:]:
-    print "%s has %d points" % (player, points)
+    print("%s has %d points" % (player, points))
     voice.say("%s finished with %d points." % (player,points))
 
-print "-------------------"
+print("-------------------")
 
 
 

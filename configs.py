@@ -17,17 +17,35 @@ LETTER_THRESH = 31
 LETTER_BLUR = 5
 
 SIZE = 480
-LSTEP = 23
-RSTEP = 9
-TSTEP = 11
-BSTEP = 7
+
+BOARD_MODE_RED_CIRCLES = False
+BOARD_MODE_RED_BORDER = True
+
+# For red border
+TL_X = 0
+TL_Y = 0
+BR_X = 0
+BR_Y = 0
+
+LSTEP = 92
+RSTEP = 20
+TSTEP = 21
+BSTEP = 20
+
+# For red circles
+#TL_X = 1
+#TL_Y = -13
+#BR_X = 0
+#BR_Y = 0
+#
+#LSTEP = 23
+#RSTEP = 9
+#TSTEP = 11
+#BSTEP = 7
 
 SIDE_DEV_THRESH = 0.10
 
-TL_X = 1
-TL_Y = -13
-BR_X = 0
-BR_Y = 0
+
 
 PATCH_EXPAND = -10
 
@@ -42,7 +60,8 @@ BLANK_DETECT_SIZE = 45
 BLANK_PATCH_BL_SHIFT = 0
 
 BLANK_NEIGHBORS = 20
-BLANK_Z_THRESH = 4.0
+#BLANK_Z_THRESH = 4.0
+BLANK_Z_THRESH = 14.0
 
 TRAIN_SIZE = 20
 
@@ -54,5 +73,4 @@ RELOAD = True
 
 VFLIP = False
 
-DEBUG = True
-
+DEBUG = False

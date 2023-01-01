@@ -35,7 +35,7 @@ class Speaker(Thread):
             with self.c:
                 while len(self.q) == 0:
                     if self.exit:
-                        print "Speaker terminating"
+                        print("Speaker terminating")
                         return
                     self.c.wait()
                 txt = self.q.pop()

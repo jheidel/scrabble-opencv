@@ -60,8 +60,8 @@ class Scoreboard:
 
 
     def get_scores(self):
-        a = zip(self.points.values(), self.points.keys())
-        a.sort(reverse=True)
+        a = list(zip(self.points.values(), self.points.keys()))
+        a.sort(reverse=True, key=lambda x: x[0])
         return [(x,y) for (y,x) in a]
 
     def get_player_turn(self):

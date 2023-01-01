@@ -1,0 +1,14 @@
+certifi==2022.12.7
+charset-normalizer==2.1.1
+html5lib==1.1
+idna==3.4
+mechanize==0.4.8
+numpy==1.24.1
+opencv-python==4.7.0.68
+requests==2.28.1
+scipy==1.9.3
+six==1.16.0
+tk==0.1.0
+tornado==6.2
+urllib3==1.26.13
+webencodings==0.5.1

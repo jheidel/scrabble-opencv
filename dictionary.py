@@ -1,4 +1,5 @@
-import mechanize, cookielib
+import mechanize
+import http.cookiejar
 from threading import Thread
 
 #Hackish parser to look up defintiions from the scrabble website
@@ -19,7 +20,7 @@ class DictLookup(Thread):
             br = mechanize.Browser(factory=mechanize.RobustFactory())
 
             # Cookie Jar
-            cj = cookielib.LWPCookieJar()
+            cj = http.cookiejar.LWPCookieJar()
             br.set_cookiejar(cj)
 
             # Browser options
@@ -38,11 +39,11 @@ class DictLookup(Thread):
                              ('Accept-Language', 'en-US,en;q=0.8'),
                              ('Accept-Charset', 'ISO-8859-1,utf-8;q=0.7,*;q=0.3')]
 
-            print "Opening URL..."
+            print("Opening URL...")
 
             br.open(URL)
 
-            print "Url Opened..."
+            print("Url Opened...")
 
             nf = 0
             i = 0
@@ -54,13 +55,13 @@ class DictLookup(Thread):
 
             br.select_form(nr=nf)
 
-            print "Submitting Word..."
+            print("Submitting Word...")
 
             br.form["dictWord"] = self.word
             br.find_control("exact").items[0].selected=True
             br.submit()
 
-            print "Word submitted..."
+            print("Word submitted...")
 
             pageresp = br.response().read()
 
@@ -69,9 +70,9 @@ class DictLookup(Thread):
             wrd = lst[2]
             dfn = wrd.split("</p>")[0]
 
-            print "Definition of %s: %s" % (self.word, dfn)
+            print("Definition of %s: %s" % (self.word, dfn))
         except:
-            print "Failed to resolve word %s." % self.word
+            print("Failed to resolve word %s." % self.word)
 
 
 

@@ -29,7 +29,7 @@ class CvSource(object):
     self.vc = cv2.VideoCapture(0)
 
   def read(self):
-    rval, frame_raw = vc.read()
+    rval, frame_raw = self.vc.read()
     if rval:
       return frame_raw
     else:
