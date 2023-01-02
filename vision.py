@@ -6,9 +6,10 @@ import gc
 from scipy.interpolate import griddata
 import configs
 from threading import Thread, Lock
-from board import Board
+from board import Board, AveragedBoard
 import traceback
 import importlib
+import time
 
 def POST(name, img):
   cv2.namedWindow(name)
@@ -51,75 +52,34 @@ def get_sub_image(image, x, y):
       (int(xp + dx/2), int(yp + dy/2))) 
 
 
-board_ar = [[] for x in range(0,15**2)]
-
-def acc(x,y):
-  return board_ar[y*15 +x]
-
-def new_info(x,y,c):
-  a = acc(x,y)
-  a.insert(0,c)
-  while len(a) > configs.CHAR_BUFFER_SIZE:
-    a.pop()
-
-def lookup_char(x,y):
-  a = acc(x,y)
-  d = {}
-  for l in a:
-    if l not in d:
-      d[l] = 1
-    else:
-      d[l] = d[l] + 1
-
-  dd = list(zip(d.values(), d.keys()))
-  dd.sort(reverse=True, key=lambda x: x[0])
-
-  if len(dd) == 0:
-    return None
-  
-
-  if dd[0][1] == None and len(dd) >= 2:
-    nc = dd[0][0]
-    ncf = float(nc) / len(a)
-    if ncf != 1:
-      if configs.DEBUG and x == configs.COORD_X and y == configs.COORD_Y:
-        print("nc IS %.2f" % ncf)
-    if ncf > configs.BLANK_REQ_PERCENT:
-      return None
-    else:
-      dd.remove(dd[0])
-
-  return dd[0][1]
-
-
-class Model:
+class LetterModel:
   def __init__(self):
-    self.responses = None
-    self.samples = None
-    self.model = None
+    self._responses = None
+    self._samples = None
+    self._model = None
 
   def load(self):
     if configs.TRAIN:
       print("Training mode!")
       if not configs.RELOAD:
-        self.responses = []
-        self.samples = np.empty((0,configs.TRAIN_SIZE**2))
+        self._responses = []
+        self._samples = np.empty((0,configs.TRAIN_SIZE**2))
       else:
-        self.samples = np.loadtxt('generalsamples.data',np.float32)
-        self.responses = np.loadtxt('generalresponses.data',np.float32)
-        self.responses = self.responses.reshape((self.responses.size,1))
-        self.responses = map(lambda x: x[0], list(self.responses))
+        self._samples = np.loadtxt('generalsamples.data',np.float32)
+        self._responses = np.loadtxt('generalresponses.data',np.float32)
+        self._responses = self._responses.reshape((self._responses.size,1))
+        self._responses = map(lambda x: x[0], list(self._responses))
     else:
       print("Loading trained data")
       
-      self.samples = np.loadtxt('generalsamples.data',np.float32)
-      self.responses = np.loadtxt('generalresponses.data',np.float32)
-      self.responses = self.responses.reshape((self.responses.size,1))
+      self._samples = np.loadtxt('generalsamples.data',np.float32)
+      self._responses = np.loadtxt('generalresponses.data',np.float32)
+      self._responses = self._responses.reshape((self._responses.size,1))
 
       print("Training model")
 
-      self.model = cv2.ml.KNearest_create()
-      self.model.train(self.samples, cv2.ml.ROW_SAMPLE, self.responses)
+      self._model = cv2.ml.KNearest_create()
+      self._model.train(self._samples, cv2.ml.ROW_SAMPLE, self._responses)
 
       print("Model trained")
 
@@ -237,26 +197,26 @@ class Model:
       print("What letter is this? (enter to stop, esc to skip)")
       o = cv2.waitKey(0)
       if o == 10:
-        self.responses = np.array(self.responses,np.float32)
-        self.responses = self.responses.reshape((self.responses.size,1))
+        self._responses = np.array(self._responses,np.float32)
+        self._responses = self._responses.reshape((self._responses.size,1))
         print("training complete")
 
-        np.savetxt('generalsamples.data',self.samples)
-        np.savetxt('generalresponses.data',self.responses)
+        np.savetxt('generalsamples.data', self._samples)
+        np.savetxt('generalresponses.data', self._responses)
         sys.exit(0)
       elif o == 27:
         print("Skipping, here's another...")
       else:
         x = chr(o).lower()
         print("You said it's a %s" % str(x))
-        self.responses.append(ord(x)-96)
-        self.samples = np.append(self.samples, sample, 0)
+        self._responses.append(ord(x)-96)
+        self._samples = np.append(self._samples, sample, 0)
         print("Added to sample set")
     else:
 
       #classify!
       sample = np.float32(sample)
-      retval, results, neigh_resp, dists = self.model.findNearest(sample, k = 1)
+      retval, results, neigh_resp, dists = self._model.findNearest(sample, k = 1)
       retchar = chr(int((results[0][0])) + 96)
       if retchar == '0':
         #Star character!
@@ -267,6 +227,8 @@ class Model:
 
 
 def experimental_thresh_board(image):
+
+  # TODO something better than this 
 
   image = cv2.resize(image, (128*15,128*15))
   luv = cv2.split(cv2.cvtColor(image, cv2.COLOR_RGB2HSV))
@@ -284,6 +246,193 @@ def experimental_thresh_board(image):
   POST("experiment thresh letters", thresh)
 
 
+class Corners:
+  """
+  Maintains an averaged position of the 4 corners of the scrabble board.
+  """
+
+  def __init__(self):
+    self.reset()
+
+  def reset(self):
+    self._corner_history = []
+
+  def observe(self, pts):
+    if len(pts) != 4:
+      if configs.CORNER_DEBUG:
+        print("Expected 4 corners, saw %d: %s" % (len(pts), pts))
+      return
+
+    print(pts)
+
+    # Sort the corners into the appropriate order
+    xy = list(sorted((p[0]+p[1], i) for i, p in enumerate(pts)))
+    print(xy)
+    tl_i = xy[0][1]
+    u1_i = xy[1][1]
+    u2_i = xy[2][1]
+    br_i = xy[3][1]
+    tr_i = u1_i if pts[u1_i][0] > pts[u2_i][0] else u2_i
+    bl_i = u1_i if tr_i != u1_i else u2_i
+    tl = pts[tl_i]
+    tr = pts[tr_i]
+    br = pts[br_i]
+    bl = pts[bl_i]
+
+    # Add config adjustments
+    # TODO: these should be moved out of here
+    tl = (tl[0] + configs.TL_X, tl[1] + configs.TL_Y)
+    br = (br[0] + configs.BR_X, br[1] + configs.BR_Y)
+
+    #Check lengths to reject invalid corner layouts
+    top_len = distance(tl, tr)
+    left_len = distance(tl, bl)
+    bottom_len = distance(bl, br)
+    right_len = distance(tr, br)
+    sides = np.array([top_len, left_len, bottom_len, right_len])
+    side_dev = float(sides.std()) / sides.mean()
+    if side_dev > configs.SIDE_DEV_THRESH:
+      if configs.CORNER_DEBUG:
+        print("Invalid board corners detected! (std of %.2f)" % side_dev)
+      return
+
+    new_corners = [tl, tr, br, bl]
+
+    # Reject when corners move too far from established position
+    if len(self._corner_history) > configs.CORNER_HISTORY_COUNT / 2:
+      current_corners = self.get()
+      distances = [distance(p1, p2) for p1, p2 in zip(new_corners, current_corners)]
+      if max(distances) > configs.CORNER_MOVE_REJECT_THRESH:
+        if configs.CORNER_DEBUG:
+          print("Rejecting corners due to excessive movement: %s" % distances)
+        return
+
+    self._corner_history.insert(0, new_corners)
+    if len(self._corner_history) > configs.CORNER_HISTORY_COUNT:
+      self._corner_history.pop()
+
+
+  def get(self):
+    """
+    Get returns corners in the order [tl, tr, br, bl]
+    """
+    if not self._corner_history:
+      return None
+
+    corners = []
+    for i in range(4):
+      x = sum(p[i][0] for p in self._corner_history)
+      y = sum(p[i][1] for p in self._corner_history)
+      c = len(self._corner_history)
+      corners.append((int(float(x)/c), int(float(y)/c)))
+
+    return corners
+
+
+class CornerFinder:
+  """
+  CornerFinder handles detection of the corners of the scrabble board.
+  """
+  def __init__(self):
+    self.corners = Corners()
+
+    self._erode_element = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (configs.ERODE_RAD,configs.ERODE_RAD))
+    self._dilate_element = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (configs.DILATE_RAD,configs.DILATE_RAD))
+
+  def reset(self):
+    self.corners.reset()
+
+  def process(self, frame):
+    """
+    Processes a given frame, returning the detected corners
+    """
+
+    if configs.CORNER_DEBUG:
+      POST("RAW", frame)
+
+    luv = cv2.split(cv2.cvtColor(frame, cv2.COLOR_RGB2LUV))
+
+    v_chan = luv[2]
+
+    if configs.CORNER_DEBUG:
+      POST("V", v_chan)
+
+    blur = cv2.GaussianBlur(v_chan, (configs.BLUR_RAD,configs.BLUR_RAD), 0)
+
+    if configs.CORNER_DEBUG:
+      POST("blur", blur)
+    thresh = cv2.adaptiveThreshold(blur, 255, 0, 1, configs.BOARD_THRESH_PARAM, configs.BOARD_BLOCK_SIZE)
+
+    if configs.CORNER_DEBUG:
+      POST("thresh", thresh)
+
+    erode = cv2.erode(thresh, self._erode_element)
+    erode = cv2.dilate(erode, self._dilate_element)
+    
+    if configs.CORNER_DEBUG:
+      POST("erode", erode)
+
+    draw = frame.copy()
+    
+    contours, hierarchy = cv2.findContours(erode, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    if configs.BOARD_MODE_RED_CIRCLES:
+      possible_corners = []
+
+      #Find circle markers on board
+      for cnt in contours:
+        sz = cv2.contourArea(cnt)
+        if sz>75 and sz < 650:
+          ellipse = cv2.fitEllipse(cnt)
+          ((x,y), (w,h), r) = ellipse
+          ar = w / h if w > h else h / w
+          if ar > 1.8:
+            continue
+          pf = (w * h * 0.75) / sz
+          if pf > 1.5:
+            continue
+          cv2.ellipse(draw,ellipse,(0,255,0),2)
+          possible_corners.append((sz, (x,y)))
+
+      possible_corners.sort(reverse=True)
+      self.corners.observe([p[1] for p in possible_corners[:4]])
+
+    if configs.BOARD_MODE_RED_BORDER:
+      cdebug = draw.copy()
+      cv2.drawContours(cdebug, contours, -1, (0, 255, 0), 1)
+
+      for cnt in contours:
+        hull = cv2.convexHull(cnt)
+        area = cv2.contourArea(hull)
+        if area < 100 * 100:
+          continue
+
+        cv2.drawContours(cdebug, [hull], -1, (255, 0, 0), 1)
+
+        perimeter = cv2.arcLength(hull, True)
+        approx = cv2.approxPolyDP(hull, perimeter * 0.02, True)
+
+        cv2.drawContours(cdebug, [approx], -1, (0, 0, 255), 1)
+
+        corners = [p[0] for p in approx]
+        if corners:
+          for cr in corners:
+            cv2.circle(draw, (int(cr[0]), int(cr[1])), 7, (0, 255, 0), thickness=1)
+
+        self.corners.observe(corners)
+
+      if configs.CORNER_DEBUG:
+        POST("red_border_debug", cdebug)
+
+    corners = self.corners.get()
+    if corners:
+      for cr in corners:
+        cv2.circle(draw, (int(cr[0]), int(cr[1])), 15, (0, 0, 255), thickness=3)
+
+    POST("Scrabble Board (Corners)", draw)
+
+    return corners
+
 
 class IterSkip(Exception): #Using exceptions for loop control... so hacky...
   def __init__(self):
@@ -300,7 +449,14 @@ class ScrabbleVision(Thread):
     self.l = Lock()
     self.started = False
     self.killed = False
-    self.model = Model()
+    self.letter_model = LetterModel()
+    self.averaged_board = AveragedBoard()
+    self.corner_finder = CornerFinder()
+    self.intervals = []
+
+  def reset(self):
+    self.corner_finder.reset()
+    self.averaged_board.reset()
 
   def get_current_board(self):
     with self.l:
@@ -311,10 +467,11 @@ class ScrabbleVision(Thread):
 
   def run(self):
 
-      self.model.load()
+      self.letter_model.load()
       self.source.start()
 
       while True:
+        start = time.time()
 
         frame_raw = self.source.read()
         if frame_raw is None:
@@ -326,8 +483,6 @@ class ScrabbleVision(Thread):
           return
 
         importlib.reload(configs)
-        element = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (configs.ERODE_RAD,configs.ERODE_RAD))
-        element2 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (configs.DILATE_RAD,configs.DILATE_RAD))
 
         #BEGIN PROCESSING
         try:
@@ -337,131 +492,12 @@ class ScrabbleVision(Thread):
           else:
             frame = frame_raw
 
-          if configs.DEBUG:
-            POST("RAW", frame)
+          corners_sorted = self.corner_finder.process(frame)
 
-          luv = cv2.split(cv2.cvtColor(frame, cv2.COLOR_RGB2LUV))
-
-          v_chan = luv[2]
-
-          if configs.DEBUG:
-            POST("V", v_chan)
-
-          blur = cv2.GaussianBlur(v_chan, (configs.BLUR_RAD,configs.BLUR_RAD), 0)
-
-          if configs.DEBUG:
-            POST("blur", blur)
-          thresh = cv2.adaptiveThreshold(blur, 255, 0, 1, configs.BOARD_THRESH_PARAM, configs.BOARD_BLOCK_SIZE)
-
-          if configs.DEBUG:
-            POST("thresh", thresh)
-
-          erode = cv2.erode(thresh, element)
-          erode = cv2.dilate(erode, element2)
-          
-          if configs.DEBUG:
-            POST("erode", erode)
-
-          erode_draw = frame.copy()
-          
-          contours,hierarchy = cv2.findContours(erode, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-          possible_corners = []
-
-          def get_closest_corner(point):
-            dst = float("inf")
-            crnr = None
-            for pc in possible_corners:
-              d = distance(point, pc)
-              if d < dst:
-                dst = d
-                crnr = pc
-            if crnr is None:
-              if configs.DEBUG:
-                print("Unable to find any corners")
-              raise IterSkip()
-            return crnr
-
-          corners_sorted = []
-
-          img_height, img_width, _ = frame_raw.shape
-
-          if configs.BOARD_MODE_RED_CIRCLES:
-            #Find large contour closest to center of image
-            for cnt in contours:
-              sz = cv2.contourArea(cnt)
-              if sz>75 and sz < 650:
-                ellipse = cv2.fitEllipse(cnt)
-                ((x,y), (w,h), r) = ellipse
-                ar = w / h if w > h else h / w
-                if ar > 1.8:
-                  continue
-                pf = (w * h * 0.75) / sz
-                if pf > 1.5:
-                  continue
-                cv2.ellipse(erode_draw,ellipse,(0,255,0),2)
-                possible_corners.append((x,y))
-
-            tl = get_closest_corner((0,0))
-            br = get_closest_corner((img_width, img_height))
-            tl = (tl[0] + configs.TL_X, tl[1] + configs.TL_Y)
-            br = (br[0] + configs.BR_X, br[1] + configs.BR_Y)
-            tr = get_closest_corner((img_width, 0))
-            bl = get_closest_corner((0, img_height))
-
-            #Check lengths to ensure valid board layout
-            top_len = distance(tl, tr)
-            left_len = distance(tl, bl)
-            bottom_len = distance(bl, br)
-            right_len = distance(tr, br)
-            sides = np.array([top_len, left_len, bottom_len, right_len])
-
-            side_dev = float(sides.std()) / sides.mean()
-            if side_dev > configs.SIDE_DEV_THRESH:
-              if configs.DEBUG:
-                print("Invalid board corners detected! (std of %.2f)" % side_dev)
-              raise IterSkip()
-
-            corners_sorted = [tl, tr, br, bl]
-
-          if configs.BOARD_MODE_RED_BORDER:
-            cdebug = erode_draw.copy()
-            cv2.drawContours(cdebug, contours, -1, (0, 255, 0), 1)
-
-            for cnt in contours:
-              hull = cv2.convexHull(cnt)
-              area = cv2.contourArea(hull)
-              if area < 100 * 100:
-                continue
-
-              cv2.drawContours(cdebug, [hull], -1, (255, 0, 0), 1)
-
-              perimeter = cv2.arcLength(hull, True)
-              approx = cv2.approxPolyDP(hull, perimeter * 0.02, True)
-
-              cv2.drawContours(cdebug, [approx], -1, (0, 0, 255), 1)
-
-              possible_corners = [p[0] for p in approx]
-              tl = get_closest_corner((0,0))
-              br = get_closest_corner((img_width, img_height))
-              tl = (tl[0] + configs.TL_X, tl[1] + configs.TL_Y)
-              br = (br[0] + configs.BR_X, br[1] + configs.BR_Y)
-              tr = get_closest_corner((img_width, 0))
-              bl = get_closest_corner((0, img_height))
-
-              corners_sorted = [tl, tr, br, bl]
-
-            if configs.DEBUG:
-              POST("red_border_debug", cdebug)
-
-          if len(corners_sorted) < 4:
+          if not corners_sorted:
             if configs.DEBUG:
               print("Missing corners")
             raise IterSkip()
-
-          for cr in corners_sorted:
-            cv2.circle(erode_draw, (int(cr[0]), int(cr[1])), 15, (0, 0, 255), thickness=3)
-          POST("Scrabble Board", erode_draw)
 
           #sort corners top left, top right, bottom right, bottom left
           src = np.array(corners_sorted, np.float32)
@@ -502,7 +538,7 @@ class ScrabbleVision(Thread):
            
           if configs.TRAIN:
             img = get_sub_image(norm, configs.COORD_X, configs.COORD_Y)
-            self.model.classify_letter(img, configs.COORD_X, configs.COORD_Y, draw=True)
+            self.letter_model.classify_letter(img, configs.COORD_X, configs.COORD_Y, draw=True)
           else:
 
             blank_b = Board()
@@ -514,10 +550,10 @@ class ScrabbleVision(Thread):
               x = configs.LSTEP
               for i in range(0,15):
                 img = get_sub_image(norm, i,j)
-                r = self.model.classify_letter(img, i, j, draw=(configs.DEBUG and i == configs.COORD_X and j == configs.COORD_Y), blank_board=blank_b)
+                r = self.letter_model.classify_letter(img, i, j, draw=(configs.DEBUG and i == configs.COORD_X and j == configs.COORD_Y), blank_board=blank_b)
                 in_blank = (blank_b.get(i,j) is not None)
                 if not in_blank:
-                  new_info(i,j,r)
+                  self.averaged_board.observe(i,j,r)
                 if r is not None:
                   cv2.putText(letter_draw, str(r.upper()), (int(x)+7,int(y)+22), cv2.FONT_HERSHEY_COMPLEX, 0.7, (255,255,255))
                 x += float(configs.SIZE-configs.LSTEP-configs.RSTEP) / 15
@@ -539,9 +575,9 @@ class ScrabbleVision(Thread):
                     print("Color is %d; mean of nearest %d neighbors is %.2f, std is %.2f, z is %.2f" % (r, configs.BLANK_NEIGHBORS, mean, std, z) )
                   if z > configs.BLANK_Z_THRESH:
                     #This is a blank!
-                    new_info(i,j,'-')
+                    self.averaged_board.observe(i,j,'-')
                   else:
-                    new_info(i,j,None) #not a blank
+                    self.averaged_board.observe(i,j,None) #not a blank
                   
             if configs.DEBUG:
               POST("letter draw", letter_draw)
@@ -555,7 +591,7 @@ class ScrabbleVision(Thread):
               for j in range(0,15):
                 x = configs.LSTEP
                 for i in range(0,15):
-                  r = lookup_char(i,j) 
+                  r = self.averaged_board.get(i,j) 
                   self.board.set(i,j,r)
                   if r is not None:
                     cv2.putText(avg_draw, str(r.upper()), (int(x)+7,int(y)+22), cv2.FONT_HERSHEY_COMPLEX, 0.7, (255,255,255))
@@ -571,6 +607,14 @@ class ScrabbleVision(Thread):
           print("--------")
           print(traceback.format_exc())
           print("--------")
+
+        self.intervals.insert(0, time.time() - start)
+        if len(self.intervals) > 10:
+          self.intervals.pop()
+        fps = 1.0 / (sum(self.intervals) / len(self.intervals)) if self.intervals else 0
+
+        if configs.DEBUG:
+          print("Processing at %.2f FPS" % fps)
 
         #END PROCESSING
 

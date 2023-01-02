@@ -1,5 +1,7 @@
 from scoring import *
 import twl #for auto blank resolution
+import configs
+
 
 class Board:
     SIZE = 15
@@ -268,4 +270,60 @@ class Board:
                 sy += 1
 
         return score * c_mult
+
+
+class AveragedBoard:
+  """
+  AveragedBoard represents a grid of letters with hysteresis.
+  """
+
+  def __init__(self):
+    self.reset()
+
+  def reset(self):
+    self._board_letters = [[] for x in range(0,15**2)]
+
+  def _acc(self, x, y):
+    return self._board_letters[y*15 +x]
+
+  def observe(self, x, y, c):
+    """
+    Observe letter `c` at position x,y
+    """
+    a = self._acc(x, y)
+    a.insert(0,c)
+    while len(a) > configs.CHAR_BUFFER_SIZE:
+      a.pop()
+
+  def get(self, x, y):
+    """
+    Get the average letter at position x,y
+    """
+    a = self._acc(x,y)
+    d = {}
+    for l in a:
+      if l not in d:
+        d[l] = 1
+      else:
+        d[l] = d[l] + 1
+
+    dd = list(zip(d.values(), d.keys()))
+    dd.sort(reverse=True, key=lambda x: x[0])
+
+    if len(dd) == 0:
+      return None
+    
+    if dd[0][1] == None and len(dd) >= 2:
+      nc = dd[0][0]
+      ncf = float(nc) / len(a)
+      if ncf != 1:
+        if configs.DEBUG and x == configs.COORD_X and y == configs.COORD_Y:
+          print("nc IS %.2f" % ncf)
+      if ncf > configs.BLANK_REQ_PERCENT:
+        return None
+      else:
+        dd.remove(dd[0])
+
+    return dd[0][1]
+
 

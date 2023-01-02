@@ -138,6 +138,9 @@ while True:
             new_board = sv.get_current_board() 
             game_board = new_board
             continue
+        elif splitted[0] == "reset":
+          print("Resetting scrabble vision")
+          sv.reset()
         elif splitted[0] == "":
             break
         else:
