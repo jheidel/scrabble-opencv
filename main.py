@@ -114,6 +114,10 @@ while True:
     serve.refresh()
 
     clock.clock_start()
+
+    # TODO:
+    #  - Turn undo
+    #  - Turn edit (in case of accepted errors)
     
     while True:
         rsp = ask("Push enter to register move").lower().strip()
@@ -141,6 +145,17 @@ while True:
         elif splitted[0] == "reset":
           print("Resetting scrabble vision")
           sv.reset()
+        elif splitted[0] == "force":
+          if len(splitted) < 4:
+            print("Usage: force [x] [y] [value]. Use None to clear.")
+            continue
+          x = int(splitted[1])
+          y = int(splitted[2])
+          v = splitted[3].lower()
+          if v == "none":
+            v = None
+          print("Setting override for (%d, %d) to value %s" % (x, y, v))
+          sv.set_override(x, y, v)
         elif splitted[0] == "":
             break
         else:
@@ -306,17 +321,18 @@ for player, points in final_scores[1:]:
 
 print("-------------------")
 
-
-
-sayings = ["Have a nice day.",
-           "Good game.",
-           "Enjoy the rest of your day.",
-           "yo-lo",
-           "Good bye!",
-           "Good job %s." % winner,
-           "Thanks for playing.",
-           "Thank you.",
-           "Thank you and have a pleasant day."]
+sayings = [
+  "Have a nice day.",
+  "Good game.",
+  "Enjoy the rest of your day.",
+  "Good bye!",
+  "Good job %s." % winner,
+  "Congratulations to %s." % winner,
+  "Thanks for playing.",
+  "Thank you.",
+  "Thank you and have a pleasant day.",
+  "Shall we start another game?",
+]
 
 from random import randint
 

@@ -1,80 +1,124 @@
-WARN_TIME = 3
-ALARM_TIME = 4
+import cv2
 
+# Enable verbose debugging, fine-grained debugging booleans below are likely to
+# be more useful.
+DEBUG_VERBOSE = False
 
-ERODE_RAD = 3
-DILATE_RAD = 3
-BLUR_RAD = 5
+# -----------------------------
+# Camera capture settings
+# -----------------------------
 
-IMAGE_W = 640
-IMAGE_H = 480
+CAPTURE_WIDTH = 960
+CAPTURE_HEIGHT = 720
+CAPTURE_VFLIP = True
 
-BOARD_THRESH_PARAM = 51
-BOARD_BLOCK_SIZE = 21
+# -----------------------------
+# Coroner detection
+# -----------------------------
 
-LETTER_BLOCK = 5
+DEBUG_CORNERS = False
+
+# Board has red circle stickers on the outline
+BOARD_MODE_RED_CIRCLES = False
+
+# Board has a red boarder (newer scrabble board)
+BOARD_MODE_RED_BORDER = True
+
+CORNER_ERODE_RAD = 3
+CORNER_DILATE_RAD = 3
+CORNER_BLUR_RAD = 5
+
+CORNER_THRESH_PARAM = 31
+CORNER_BLOCK_SIZE = 15
+
+# Reject corners if the board's edge lengths deviate by more than this amount.
+CORNER_SIDE_DEV_THRESH = 0.10
+
+# Hysteresis configuration
+CORNER_HISTORY_COUNT = 10
+CORNER_MOVE_REJECT_THRESH = 100
+
+# Position of game board relative to the corners. Adjustments are in 1/1000
+# units relative to the corners.
+TL_X = 190
+TL_Y = 40
+TR_X = 40
+TR_Y = 40
+BL_X = 195
+BL_Y = 40
+BR_X = 40
+BR_Y = 40
+
+# -----------------------------
+# Letter detection
+# -----------------------------
+
+DEBUG_LETTERS = False
+
+TRAIN = False
+TRAIN_APPEND = True
+
+# Per-letter processing size (pixels)
+LETTER_SIZE = 48
+
+# Per-letter training size (pixels)
+LETTER_TRAIN_SIZE = 18
+
+# Fraction of the letter's area use for training (cutting off the edges)
+LETTER_TRAIN_SUBPIX_FRAC = 0.75
+
+LETTER_COLORSPACE = cv2.COLOR_RGB2HSV
+LETTER_CHANNEL = 2  # V of HSV
+
+LETTER_BLOCK = 47
 LETTER_THRESH = 31
 LETTER_BLUR = 5
 
-SIZE = 480
+# Expand the board by this amount to account for letters off the edge.
+LETTER_PAD_FRAC = 0.5
 
-BOARD_MODE_RED_CIRCLES = False
-BOARD_MODE_RED_BORDER = True
+# Allow letters to be out of position (misaligned) by this fraction.
+LETTER_MAX_SHIFT_FRAC = 0.33
 
-# For red border
-TL_X = 0
-TL_Y = 0
-BR_X = 0
-BR_Y = 0
+# Reasonableness filters for per-letter contours
+LETTER_CONTOUR_MIN_FRAC = 0.043
+LETTER_CONTOUR_MAX_FRAC = 0.650
+LETTER_TEXT_RATIO = 1.4
+LETTER_MAX_FILL=0.8
 
-LSTEP = 92
-RSTEP = 20
-TSTEP = 21
-BSTEP = 20
+# Amount of averaging to do over time for letter detections.
+BOARD_LETTER_HISTORY_SIZE = 10
 
-# For red circles
-#TL_X = 1
-#TL_Y = -13
-#BR_X = 0
-#BR_Y = 0
-#
-#LSTEP = 23
-#RSTEP = 9
-#TSTEP = 11
-#BSTEP = 7
+# -----------------------------
+# Blank detection
+# -----------------------------
 
-SIDE_DEV_THRESH = 0.10
+DEBUG_BLANKS = False
 
+# NOTE: H channel of HSV also works well here.
+BLANK_COLORSPACE = cv2.COLOR_RGB2GRAY
+BLANK_CHANNEL = None
 
+# Fraction of the letter to use for blank detection.
+BLANK_PATCH_FRAC = 0.40
 
-PATCH_EXPAND = -10
+# Blank tiles will be smooth. Reject tiles above this threshold.
+BLANK_COEF_VAR_MAX = 2.9
 
-CHAR_BUFFER_SIZE = 15
+# Require higher confidence for blank detection in the averaged board
 BLANK_REQ_PERCENT = 0.65
 
-TEXT_RATIO = 1.4
-MAX_FILL=1.01
+BLANK_NEIGHBORS = 10
+BLANK_Z_THRESH = 3.0
 
-STD_DEV_THRESH = 2.9
-BLANK_DETECT_SIZE = 45
-BLANK_PATCH_BL_SHIFT = 0
+# -----------------------------
+# Game settings
+# -----------------------------
 
-BLANK_NEIGHBORS = 20
-#BLANK_Z_THRESH = 4.0
-BLANK_Z_THRESH = 14.0
+# Number of letters that make up the scrabble board.
+# NOTE: not fully supported to change this. Scoring only works for 15x15. Maybe
+# super scrabble some day.
+BOARD_SIZE = 15
 
-TRAIN_SIZE = 20
-
-COORD_X = 13
-COORD_Y = 12
-
-TRAIN = False
-RELOAD = True
-
-VFLIP = True
-
-CORNER_DEBUG = False
-DEBUG = True
-
-CORNER_HISTORY_COUNT = 10
-CORNER_MOVE_REJECT_THRESH = 100
+WARN_TIME = 3
+ALARM_TIME = 4

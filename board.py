@@ -1,5 +1,5 @@
 from scoring import *
-import twl #for auto blank resolution
+import twl  #for auto blank resolution
 import configs
 
 
@@ -292,7 +292,7 @@ class AveragedBoard:
     """
     a = self._acc(x, y)
     a.insert(0,c)
-    while len(a) > configs.CHAR_BUFFER_SIZE:
+    while len(a) > configs.BOARD_LETTER_HISTORY_SIZE:
       a.pop()
 
   def get(self, x, y):
@@ -316,14 +316,9 @@ class AveragedBoard:
     if dd[0][1] == None and len(dd) >= 2:
       nc = dd[0][0]
       ncf = float(nc) / len(a)
-      if ncf != 1:
-        if configs.DEBUG and x == configs.COORD_X and y == configs.COORD_Y:
-          print("nc IS %.2f" % ncf)
       if ncf > configs.BLANK_REQ_PERCENT:
         return None
       else:
         dd.remove(dd[0])
 
     return dd[0][1]
-
-

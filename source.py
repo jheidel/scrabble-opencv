@@ -1,5 +1,6 @@
 import cv2
 import ipcam
+import configs
 
 
 class FileSource(object):
@@ -27,6 +28,9 @@ class IPSource(object):
 class CvSource(object):
   def start(self):
     self.vc = cv2.VideoCapture(0)
+
+    self.vc.set(cv2.CAP_PROP_FRAME_WIDTH, configs.CAPTURE_WIDTH)
+    self.vc.set(cv2.CAP_PROP_FRAME_HEIGHT, configs.CAPTURE_HEIGHT)
 
   def read(self):
     rval, frame_raw = self.vc.read()
