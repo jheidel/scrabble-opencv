@@ -5,7 +5,7 @@ import sys
 import gc
 from scipy.interpolate import griddata
 import configs
-from threading import Thread, Lock
+from threading import Thread, Lock, Event
 from board import Board, AveragedBoard
 import traceback
 import importlib
@@ -549,15 +549,40 @@ class IterSkip(Exception): #Using exceptions for loop control... so hacky...
     pass
 
 
+class CameraThread(Thread):
+  def __init__(self, source):
+    Thread.__init__(self)
+
+    self.l = Lock()
+    self.killed = Event()
+
+    self.source = source
+    self.source.start()
+    self.frame = self.source.read()
+
+  def get(self):
+    with self.l:
+      return self.frame
+
+  def kill(self):
+    self.killed.set()
+
+  def run(self):
+    while not self.killed.is_set():
+      frame = self.source.read()
+      with self.l:
+        self.frame = frame
+
+
 class ScrabbleVision(Thread):
   def __init__(self, source):
     Thread.__init__(self)
     self.daemon = True
-    self.source = source
+    self.camera = CameraThread(source)
 
     self.l = Lock()
     self.started = False
-    self.killed = False
+    self.killed = Event()
 
     self.board = Board()
     self.overrides = Board()
@@ -580,25 +605,26 @@ class ScrabbleVision(Thread):
       self.overrides.set(i, j, v)
 
   def kill(self):
-    self.killed = True
+    self.killed.set()
 
   def run(self):
-
       self.letter_model.load()
-      self.source.start()
+      self.camera.start()
 
       # TODO: simplify this massive loop.
       while True:
-        start = time.time()
 
-        frame_raw = self.source.read()
+        frame_raw = self.camera.get()
         if frame_raw is None:
           print('No frame received; terminating.')
           return
 
-        if self.killed:
+        if self.killed.is_set():
           print("Vision terminating")
           return
+
+        start = time.time()
+
 
         # Reload configs.py so that it can be changed on the fly in order to
         # tune vision processing.
@@ -725,7 +751,9 @@ class ScrabbleVision(Thread):
           print(traceback.format_exc())
           print("--------")
 
-        self.intervals.insert(0, time.time() - start)
+        interval = time.time() - start
+
+        self.intervals.insert(0, interval)
         if len(self.intervals) > 10:
           self.intervals.pop()
         fps = 1.0 / (sum(self.intervals) / len(self.intervals)) if self.intervals else 0
@@ -736,7 +764,7 @@ class ScrabbleVision(Thread):
         self.started = True
 
         # TODO: replace with capped FPS
-        key = cv2.waitKey(333)
+        key = cv2.waitKey(max(10, int(1000. / configs.MAX_FPS - 1000 * interval)))
 
       print("Terminating...")
 

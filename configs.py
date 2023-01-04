@@ -12,6 +12,8 @@ CAPTURE_WIDTH = 960
 CAPTURE_HEIGHT = 720
 CAPTURE_VFLIP = True
 
+MAX_FPS = 4
+
 # -----------------------------
 # Coroner detection
 # -----------------------------
