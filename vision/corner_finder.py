@@ -136,7 +136,7 @@ class CornerFinder:
       #Find circle markers on board
       for cnt in contours:
         sz = cv2.contourArea(cnt)
-        if sz>75 and sz < 650:
+        if sz>75 and sz < 1000:
           ellipse = cv2.fitEllipse(cnt)
           ((x,y), (w,h), r) = ellipse
           ar = w / h if w > h else h / w
@@ -145,11 +145,21 @@ class CornerFinder:
           pf = (w * h * 0.75) / sz
           if pf > 1.5:
             continue
-          cv2.ellipse(draw,ellipse,(0,255,0),2)
-          possible_corners.append((sz, (x,y)))
+          cv2.ellipse(draw,ellipse,(0,255,255),2)
+          possible_corners.append((x,y))
 
-      possible_corners.sort(reverse=True)
-      self.corners.observe([p[1] for p in possible_corners[:4]])
+      h, w, _ = frame.shape 
+      c1 = min(possible_corners, key=lambda c: distance(c, [0,0]))
+      c2 = min(possible_corners, key=lambda c: distance(c, [w,0]))
+      c3 = min(possible_corners, key=lambda c: distance(c, [w,h]))
+      c4 = min(possible_corners, key=lambda c: distance(c, [0,h]))
+
+      corners = [c1, c2, c3, c4]
+      for cr in corners:
+        cv2.circle(draw, (int(cr[0]), int(cr[1])), 7, (0, 255, 0), thickness=1)
+
+      cv2.ellipse(draw,ellipse,(0,255,255),2)
+      self.corners.observe(corners)
 
     # Find a board identified by a red outline (newer scrabble boards have a
     # red border)

@@ -13,6 +13,7 @@ def main():
   print('Training mode!')
 
   vs = source.CvSource()
+  #vs = source.FileSource()
   vs.start()
 
   model = LetterModelTrainer()

@@ -21,10 +21,10 @@ MAX_FPS = 4
 DEBUG_CORNERS = False
 
 # Board has red circle stickers on the outline
-BOARD_MODE_RED_CIRCLES = False
+BOARD_MODE_RED_CIRCLES = True
 
 # Board has a red boarder (newer scrabble board)
-BOARD_MODE_RED_BORDER = True
+BOARD_MODE_RED_BORDER = False
 
 CORNER_ERODE_RAD = 3
 CORNER_DILATE_RAD = 3
@@ -42,14 +42,26 @@ CORNER_MOVE_REJECT_THRESH = 100
 
 # Position of game board relative to the corners. Adjustments are in 1/1000
 # units relative to the corners.
-TL_X = 190
-TL_Y = 40
-TR_X = 40
-TR_Y = 40
-BL_X = 195
-BL_Y = 40
-BR_X = 40
-BR_Y = 40
+
+## Adjustments for parents' board
+TL_X = 54
+TL_Y = 2
+TR_X = 20
+TR_Y = 25
+BL_X = 48
+BL_Y = 18
+BR_X = 20
+BR_Y = 22
+
+## Adjustments for Jeff's board
+#  TL_X = 190
+#  TL_Y = 40
+#  TR_X = 40
+#  TR_Y = 40
+#  BL_X = 195
+#  BL_Y = 40
+#  BR_X = 40
+#  BR_Y = 40
 
 # -----------------------------
 # Letter detection
@@ -72,18 +84,24 @@ LETTER_TRAIN_SUBPIX_FRAC = 0.75
 LETTER_COLORSPACE = cv2.COLOR_RGB2HSV
 LETTER_CHANNEL = 2  # V of HSV
 
-LETTER_BLOCK = 47
-LETTER_THRESH = 31
+# Adjustments for parents' board
+LETTER_BLOCK = 45
+LETTER_THRESH = 27
 LETTER_BLUR = 5
+
+# Adjustments for Jeff's board
+#LETTER_BLOCK = 47
+#LETTER_THRESH = 31
+#LETTER_BLUR = 5
 
 # Expand the board by this amount to account for letters off the edge.
 LETTER_PAD_FRAC = 0.5
 
 # Allow letters to be out of position (misaligned) by this fraction.
-LETTER_MAX_SHIFT_FRAC = 0.33
+LETTER_MAX_SHIFT_FRAC = 0.30
 
 # Reasonableness filters for per-letter contours
-LETTER_CONTOUR_MIN_FRAC = 0.043
+LETTER_CONTOUR_MIN_FRAC = 0.030
 LETTER_CONTOUR_MAX_FRAC = 0.650
 LETTER_TEXT_RATIO = 1.4
 LETTER_MAX_FILL=0.8
@@ -104,14 +122,23 @@ BLANK_CHANNEL = None
 # Fraction of the letter to use for blank detection.
 BLANK_PATCH_FRAC = 0.40
 
-# Blank tiles will be smooth. Reject tiles above this threshold.
-BLANK_COEF_VAR_MAX = 2.9
 
 # Require higher confidence for blank detection in the averaged board
 BLANK_REQ_PERCENT = 0.65
 
 BLANK_NEIGHBORS = 10
-BLANK_Z_THRESH = 3.0
+
+# For parents' board
+# Blank tiles will be smooth. Reject tiles above this threshold.
+BLANK_COEF_VAR_MAX = 6.0
+
+BLANK_Z_THRESH = 6.0
+
+# For Jeff's board
+## Blank tiles will be smooth. Reject tiles above this threshold.
+#BLANK_COEF_VAR_MAX = 2.9
+#
+#BLANK_Z_THRESH = 3.0
 
 # -----------------------------
 # Game settings
