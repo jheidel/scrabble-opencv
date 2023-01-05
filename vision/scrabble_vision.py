@@ -9,8 +9,9 @@ import time
 
 from .corner_finder import CornerFinder
 from .letter_finder import LetterFinder
-from .letter_model import LetterModel
+from .letter_model import LetterModelClassifier
 from .blank_finder import BlankFinder
+from .perspective import crop_board
 from .util import *
 
 
@@ -56,7 +57,7 @@ class ScrabbleVision(Thread):
 
     self.board = Board()
     self.overrides = Board()
-    self.letter_model = LetterModel()
+    self.letter_model = LetterModelClassifier()
     self.averaged_board = AveragedBoard()
     self.corner_finder = CornerFinder()
 
@@ -84,8 +85,8 @@ class ScrabbleVision(Thread):
       # TODO: simplify this massive loop.
       while True:
 
-        frame_raw = self.camera.get()
-        if frame_raw is None:
+        frame = self.camera.get()
+        if frame is None:
           print('No frame received; terminating.')
           return
 
@@ -101,47 +102,14 @@ class ScrabbleVision(Thread):
         importlib.reload(configs)
 
         try:
+          corners = self.corner_finder.process(frame)
 
-          if configs.CAPTURE_VFLIP: 
-            frame = cv2.flip(frame_raw, flipCode=-1)
-          else:
-            frame = frame_raw
-
-          corners_sorted = self.corner_finder.process(frame)
-
-          if not corners_sorted:
+          if not corners:
             if configs.DEBUG_VERBOSE:
               print("Missing corners")
             raise IterSkip()
 
-          #sort corners top left, top right, bottom right, bottom left
-          src = np.array(corners_sorted, np.float32)
-          d_dp = np.array([[0,0],[1000,0],[1000,1000],[0,1000]], np.float32)
-          m1 = cv2.getPerspectiveTransform(src, d_dp)
-
-          # Crop in relative to 1000x1000 using configured settings
-          d_adj = np.array([
-            [configs.TL_X, configs.TL_Y],
-            [1000 - configs.TR_X, configs.TR_Y],
-            [1000 - configs.BR_X, 1000 - configs.BR_Y],
-            [configs.BL_X, 1000 - configs.BL_Y],
-          ], np.float32)
-
-          m2 = cv2.getPerspectiveTransform(d_adj, d_dp)
-
-          # Pad the output by a fraction of a letter to give us a margin
-          pad = int(1000. / configs.BOARD_SIZE  * configs.LETTER_PAD_FRAC)
-          d_pad = np.array([[pad,pad],[1000-pad,pad],[1000-pad,1000-pad],[pad,1000-pad]], np.float32)
-
-          m3 = cv2.getPerspectiveTransform(d_dp, d_pad)
-
-          sz = get_board_size()
-          step = int(configs.LETTER_SIZE * configs.LETTER_PAD_FRAC)
-
-          d_final = np.array([[0,0],[sz,0],[sz,sz],[0,sz]], np.float32)
-          m4 = cv2.getPerspectiveTransform(d_dp, d_final)
-
-          normalized_board_image = cv2.warpPerspective(frame, m4.dot(m3.dot(m2.dot(m1))), (sz,sz))
+          normalized_board_image = crop_board(frame, corners)
 
           # Find and classify letters.
           letter_finder = LetterFinder()
@@ -176,7 +144,8 @@ class ScrabbleVision(Thread):
                 self.board.set(i,j,v)
 
           # Draw the current letter classification.
-
+          step = int(configs.LETTER_SIZE * configs.LETTER_PAD_FRAC)
+          sz = get_board_size()
           # TODO: would be cleaner with simple rectangles
           letter_draw = normalized_board_image.copy()
           line_color = (0,0,255)

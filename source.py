@@ -34,8 +34,10 @@ class CvSource(object):
 
   def read(self):
     rval, frame_raw = self.vc.read()
-    if rval:
-      return frame_raw
-    else:
+    if not rval:
       return None
+    # TODO: make vflip work for all sources using base class
+    if configs.CAPTURE_VFLIP: 
+      frame_raw = cv2.flip(frame_raw, flipCode=-1)
+    return frame_raw
 
