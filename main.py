@@ -15,7 +15,7 @@ import gameclock
 import scorebox
 import source
 import speaker
-import vision
+from vision.scrabble_vision import ScrabbleVision
 import webserver
 import importlib
 
@@ -30,7 +30,7 @@ def ask(s):
 vision_source = source.CvSource()
 
 print("Starting scrabble vision...")
-sv = vision.ScrabbleVision(source=vision_source)
+sv = ScrabbleVision(source=vision_source)
 sv.start()
 while not sv.started:
     pass
