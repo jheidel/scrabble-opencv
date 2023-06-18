@@ -30,8 +30,8 @@ CORNER_ERODE_RAD = 3
 CORNER_DILATE_RAD = 3
 CORNER_BLUR_RAD = 5
 
-CORNER_THRESH_PARAM = 31
-CORNER_BLOCK_SIZE = 15
+CORNER_THRESH_PARAM = 41
+CORNER_BLOCK_SIZE = 9
 
 # Reject corners if the board's edge lengths deviate by more than this amount.
 CORNER_SIDE_DEV_THRESH = 0.10
@@ -86,7 +86,7 @@ LETTER_CHANNEL = 2  # V of HSV
 
 # Adjustments for parents' board
 LETTER_BLOCK = 45
-LETTER_THRESH = 27
+LETTER_THRESH = 23
 LETTER_BLUR = 5
 
 # Adjustments for Jeff's board
@@ -98,7 +98,7 @@ LETTER_BLUR = 5
 LETTER_PAD_FRAC = 0.5
 
 # Allow letters to be out of position (misaligned) by this fraction.
-LETTER_MAX_SHIFT_FRAC = 0.30
+LETTER_MAX_SHIFT_FRAC = 0.25
 
 # Reasonableness filters for per-letter contours
 LETTER_CONTOUR_MIN_FRAC = 0.030
