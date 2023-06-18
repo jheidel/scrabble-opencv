@@ -45,12 +45,20 @@ Vision processing is done using [OpenCV](https://opencv.org/) running under Pyth
 As a first step, we must identify the position of the Scrabble board in the
 captured image. This program supports two methods of doing this:
 
-1) Modern Scrabble boards have a red boarder which is fairly easy to detect
-1) You can place red circular stickers near the corners of the board as markers.
+1) (Most reliable) [ArUco fiducial markers](https://docs.opencv.org/4.x/d5/dae/tutorial_aruco_detection.html) on each corner
+1) Some Scrabble boards have a red boarder which is fairly easy to detect
+1) You can place red circular stickers near the corners of the board as markers
 
 The detection mode is configurable in `configs.py`.
 
-In the case of red border segmentation, it looks as follows:
+The easiest and most reliable method is to use **corner markers**. Print out
+[`corner_markers.pdf`](corner_markers.pdf) and apply these labels to the
+corresponding corners. OpenCV has built-in detection for these ArUco markers
+and it works extremely well.
+
+![markers](docs/corners_markers.png)
+
+In the case of **red border segmentation**, it looks as follows:
 
 As a first step, we perform binary segmentation of the image to look for the red color:
 

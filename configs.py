@@ -10,7 +10,7 @@ DEBUG_VERBOSE = False
 
 CAPTURE_WIDTH = 960
 CAPTURE_HEIGHT = 720
-CAPTURE_VFLIP = True
+CAPTURE_VFLIP = False
 
 MAX_FPS = 4
 
@@ -21,10 +21,15 @@ MAX_FPS = 4
 DEBUG_CORNERS = False
 
 # Board has red circle stickers on the outline
-BOARD_MODE_RED_CIRCLES = True
+BOARD_MODE_RED_CIRCLES = False
 
 # Board has a red boarder (newer scrabble board)
 BOARD_MODE_RED_BORDER = False
+
+# Board has ArUco fiducial markers on corners. This is going to be the most
+# reliable detection method. Print out corner_markers.pdf and apply these
+# labels to the corners.
+BOARD_MODE_MARKERS = True
 
 CORNER_ERODE_RAD = 3
 CORNER_DILATE_RAD = 3
@@ -43,17 +48,27 @@ CORNER_MOVE_REJECT_THRESH = 100
 # Position of game board relative to the corners. Adjustments are in 1/1000
 # units relative to the corners.
 
-## Adjustments for parents' board
-TL_X = 54
-TL_Y = 2
-TR_X = 20
-TR_Y = 25
-BL_X = 48
-BL_Y = 18
-BR_X = 20
-BR_Y = 22
+# Adjustments for Jeff's board [ArUco markers]
+TL_X = 10
+TL_Y = 5
+TR_X = 10
+TR_Y = 5
+BL_X = 10
+BL_Y = 5
+BR_X = 10
+BR_Y = 5
 
-## Adjustments for Jeff's board
+## Adjustments for parents' board [red circles]
+# TL_X = 54
+# TL_Y = 2
+# TR_X = 20
+# TR_Y = 25
+# BL_X = 48
+# BL_Y = 18
+# BR_X = 20
+# BR_Y = 22
+
+## Adjustments for Jeff's board [red border]
 #  TL_X = 190
 #  TL_Y = 40
 #  TR_X = 40
