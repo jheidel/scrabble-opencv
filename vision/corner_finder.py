@@ -113,20 +113,21 @@ class CornerFinder:
       (corners, ids, rejected) = self._aruco.detectMarkers(frame)
       cv2.aruco.drawDetectedMarkers(draw, corners, ids)
 
-      tl, tr, bl, br = (None, None, None, None)
-      for cid, c in zip(ids, corners):
-        if cid == 10:
-          tl = c[0][2]
-        elif cid == 20:
-          tr = c[0][3]
-        elif cid == 30:
-          bl = c[0][1]
-        elif cid == 40:
-          br = c[0][0]
+      if corners:
+        tl, tr, bl, br = (None, None, None, None)
+        for cid, c in zip(ids, corners):
+          if cid == 10:
+            tl = c[0][2]
+          elif cid == 20:
+            tr = c[0][3]
+          elif cid == 30:
+            bl = c[0][1]
+          elif cid == 40:
+            br = c[0][0]
 
-      if all(x is not None for x in [tr, tl, br, bl]):
-        corners = [tl, tr, br, bl]
-        self.corners.observe(corners)
+        if all(x is not None for x in [tr, tl, br, bl]):
+          corners = [tl, tr, br, bl]
+          self.corners.observe(corners)
 
     else:
       luv = cv2.split(cv2.cvtColor(frame, cv2.COLOR_RGB2LUV))
