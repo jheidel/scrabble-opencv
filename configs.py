@@ -49,14 +49,24 @@ CORNER_MOVE_REJECT_THRESH = 100
 # units relative to the corners.
 
 # Adjustments for Jeff's board [ArUco markers]
-TL_X = 10
+# TL_X = 10
+# TL_Y = 5
+# TR_X = 10
+# TR_Y = 5
+# BL_X = 10
+# BL_Y = 5
+# BR_X = 10
+# BR_Y = 5
+
+# Adjustments for Parents' board [ArUco markers]
+TL_X = 14
 TL_Y = 5
 TR_X = 10
 TR_Y = 5
-BL_X = 10
-BL_Y = 5
+BL_X = 14
+BL_Y = 10
 BR_X = 10
-BR_Y = 5
+BR_Y = 10
 
 ## Adjustments for parents' board [red circles]
 # TL_X = 54
@@ -101,7 +111,7 @@ LETTER_CHANNEL = 2  # V of HSV
 
 # Adjustments for parents' board
 LETTER_BLOCK = 45
-LETTER_THRESH = 23
+LETTER_THRESH = 19
 LETTER_BLUR = 5
 
 # Adjustments for Jeff's board
@@ -145,9 +155,9 @@ BLANK_NEIGHBORS = 10
 
 # For parents' board
 # Blank tiles will be smooth. Reject tiles above this threshold.
-BLANK_COEF_VAR_MAX = 6.0
+BLANK_COEF_VAR_MAX = 8.0
 
-BLANK_Z_THRESH = 6.0
+BLANK_Z_THRESH = 8
 
 # For Jeff's board
 ## Blank tiles will be smooth. Reject tiles above this threshold.

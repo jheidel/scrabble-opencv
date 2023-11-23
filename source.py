@@ -1,6 +1,8 @@
 import cv2
 import ipcam
 import configs
+import re
+import os
 
 
 class FileSource(object):
@@ -25,9 +27,25 @@ class IPSource(object):
     return small
 
 
+def GetWebcamID():
+    DEFAULT_CAMERA_NAME = '/dev/v4l/by-id/usb-046d_HD_Pro_Webcam_C920_1142B73F-video-index0'
+    if not os.path.exists(DEFAULT_CAMERA_NAME):
+        return None
+    device_path = os.path.realpath(DEFAULT_CAMERA_NAME)
+    device_re = re.compile("\/dev\/video(\d+)")
+    info = device_re.match(device_path)
+    if not info:
+        return None
+    return int(info.group(1))
+
+
 class CvSource(object):
   def start(self):
-    self.vc = cv2.VideoCapture(0)
+    webcam_id = GetWebcamID()
+    if webcam_id is None:
+        print('Target webcam not found!')
+        webcam_id = 0
+    self.vc = cv2.VideoCapture(webcam_id)
 
     self.vc.set(cv2.CAP_PROP_FRAME_WIDTH, configs.CAPTURE_WIDTH)
     self.vc.set(cv2.CAP_PROP_FRAME_HEIGHT, configs.CAPTURE_HEIGHT)
