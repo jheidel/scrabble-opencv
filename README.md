@@ -2,6 +2,16 @@
 
 A fun computer vision Scrabble score-keeper using OpenCV and Python.
 
+> **⭐ Update 2026-11-25**
+>
+> With the help of AI tooling, I've retrofitted this old project into an Android app. The vision accuracy is dramatically improved by using YOLO26 models and the final UX is much more polished as well. This should be usable out-of-the-box in a way that this classical vision project never was.
+>
+> See more here:
+>  - https://jeffheidel.com/scrabble
+>  - https://jeffheidel.com/scrabble/vision.html
+>
+> Feedback is welcome, email scrabble@jeffheidel.com
+
 ## Overview
 
 I started this project around 2013 and I've been using it in family scrabble
